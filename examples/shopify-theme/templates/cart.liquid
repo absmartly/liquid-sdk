@@ -1,0 +1,103 @@
+{% comment %}
+  Cart Page with A/B Tests
+
+  Experiments:
+  - exp_free_shipping_banner: Test free shipping threshold messaging
+  - free_shipping_threshold: Variable for threshold amount
+{% endcomment %}
+
+{% layout 'theme' %}
+
+<div class="cart-page">
+  <h1>Shopping Cart</h1>
+
+  {% if cart.item_count > 0 %}
+    {% comment %} A/B Test: Free Shipping Banner {% endcomment %}
+    {% assign banner_variant = 'exp_free_shipping_banner' | absmartly_treatment %}
+    {% assign threshold = 'free_shipping_threshold' | absmartly_variable: 50 %}
+    {% assign threshold_cents = threshold | times: 100 %}
+
+    {% if banner_variant == 1 %}
+      <div class="free-shipping-banner">
+        {% if cart.total_price >= threshold_cents %}
+          <div class="banner-success">
+            🎉 Congratulations! You qualify for FREE SHIPPING!
+          </div>
+        {% else %}
+          {% assign remaining = threshold_cents | minus: cart.total_price | money %}
+          <div class="banner-progress">
+            <div class="progress-bar">
+              {% assign progress = cart.total_price | times: 100 | divided_by: threshold_cents %}
+              <div class="progress-fill" style="width: {{ progress }}%"></div>
+            </div>
+            <p>Add {{ remaining }} more to get <strong>FREE SHIPPING</strong></p>
+          </div>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    {% comment %} Cart items {% endcomment %}
+    <form action="/cart" method="post" class="cart-form">
+      {% for item in cart.items %}
+        <div class="cart-item">
+          <img src="{{ item.image | img_url: 'small' }}" alt="{{ item.title }}">
+
+          <div class="item-details">
+            <h3>{{ item.product.title }}</h3>
+            {% unless item.variant.title contains 'Default' %}
+              <p class="variant">{{ item.variant.title }}</p>
+            {% endunless %}
+          </div>
+
+          <div class="item-quantity">
+            <input type="number" name="updates[]" value="{{ item.quantity }}" min="0">
+          </div>
+
+          <div class="item-price">
+            {{ item.final_line_price | money }}
+          </div>
+        </div>
+      {% endfor %}
+
+      <div class="cart-footer">
+        <div class="cart-total">
+          <span>Subtotal:</span>
+          <strong>{{ cart.total_price | money }}</strong>
+        </div>
+
+        <button type="submit" name="update" class="btn btn-secondary">
+          Update Cart
+        </button>
+
+        {% comment %} A/B Test: Checkout Button {% endcomment %}
+        {% assign checkout_text = 'checkout_button_text' | absmartly_variable: 'Proceed to Checkout' %}
+        <button type="submit" name="checkout" class="btn btn-primary btn-large">
+          {{ checkout_text }}
+        </button>
+      </div>
+    </form>
+
+    {% comment %} Track cart view {% endcomment %}
+    {% render 'absmartly-tracking',
+      event: 'cart_view',
+      item_count: cart.item_count,
+      total_price: cart.total_price | divided_by: 100.0
+    %}
+
+  {% else %}
+    <div class="cart-empty">
+      <h2>Your cart is empty</h2>
+      <a href="/collections/all" class="btn btn-primary">Continue Shopping</a>
+    </div>
+  {% endif %}
+</div>
+
+{% comment %} Checkout tracking {% endcomment %}
+<script>
+  document.querySelector('[name="checkout"]').addEventListener('click', function() {
+    window.absmartly.track('begin_checkout', {
+      item_count: {{ cart.item_count }},
+      total_price: {{ cart.total_price | divided_by: 100.0 }}
+    });
+  });
+</script>

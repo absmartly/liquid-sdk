@@ -1,0 +1,53 @@
+{% comment %}
+  Add to Cart Form with A/B Testing
+
+  Experiments:
+  - exp_add_to_cart_button: Test button text and styling
+  - add_to_cart_text: Variable for button text
+  - show_trust_badges: Feature flag for trust badges
+{% endcomment %}
+
+<form action="/cart/add" method="post" class="product-form">
+  <input type="hidden" name="id" value="{{ product.selected_or_first_available_variant.id }}">
+
+  {% comment %} Quantity selector {% endcomment %}
+  <div class="quantity-selector">
+    <label for="quantity">Quantity:</label>
+    <input type="number" name="quantity" id="quantity" value="1" min="1">
+  </div>
+
+  {% comment %} A/B Test: Add to Cart Button {% endcomment %}
+  {% assign button_variant = 'exp_add_to_cart_button' | absmartly_treatment %}
+
+  {% case button_variant %}
+    {% when 0 %}
+      {% comment %} Control: Default button {% endcomment %}
+      <button type="submit" class="btn btn-primary">
+        Add to Cart
+      </button>
+
+    {% when 1 %}
+      {% comment %} Treatment A: Urgent button with custom text {% endcomment %}
+      {% assign button_text = 'add_to_cart_text' | absmartly_variable: 'Buy Now' %}
+      <button type="submit" class="btn btn-urgent">
+        {{ button_text }}
+      </button>
+
+    {% when 2 %}
+      {% comment %} Treatment B: Large button with icon {% endcomment %}
+      <button type="submit" class="btn btn-large btn-success">
+        <svg class="icon-cart"><!-- cart icon --></svg>
+        Add to Bag
+      </button>
+  {% endcase %}
+
+  {% comment %} Feature Flag: Trust Badges {% endcomment %}
+  {% assign show_badges = 'show_trust_badges' | absmartly_treatment %}
+  {% if show_badges == 1 %}
+    <div class="trust-badges">
+      <span class="badge">✓ Free Shipping</span>
+      <span class="badge">✓ Easy Returns</span>
+      <span class="badge">✓ Secure Checkout</span>
+    </div>
+  {% endif %}
+</form>

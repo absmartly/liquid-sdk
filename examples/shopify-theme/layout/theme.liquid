@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="{{ shop.locale }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{{ page_title }}{% if current_tags %} &ndash; {{ current_tags | join: ', ' }}{% endif %}{% if current_page != 1 %} &ndash; Page {{ current_page }}{% endif %}{% unless page_title contains shop.name %} &ndash; {{ shop.name }}{% endunless %}</title>
+
+  {% if page_description %}
+    <meta name="description" content="{{ page_description | escape }}">
+  {% endif %}
+
+  {{ content_for_header }}
+
+  {% comment %} ABsmartly Initialization {% endcomment %}
+  {% capture session_id %}{{ request.cookie['_shopify_s'] | default: customer.id }}{% endcapture %}
+  {% render 'absmartly-init',
+    session_id: session_id,
+    customer_id: customer.id
+  %}
+
+  {% comment %} Theme CSS {% endcomment %}
+  {{ 'theme.css' | asset_url | stylesheet_tag }}
+
+  {% comment %} A/B Test: Header Style {% endcomment %}
+  {% assign header_variant = 'exp_header_style' | absmartly_treatment %}
+  {% if header_variant == 1 %}
+    {{ 'header-modern.css' | asset_url | stylesheet_tag }}
+  {% endif %}
+</head>
+
+<body class="template-{{ template | replace: '.', '-' | handle }}">
+
+  <a class="skip-to-content-link" href="#MainContent">
+    Skip to content
+  </a>
+
+  {% section 'header' %}
+
+  <main id="MainContent" role="main">
+    {{ content_for_layout }}
+  </main>
+
+  {% section 'footer' %}
+
+  {% comment %} Theme JS {% endcomment %}
+  {{ 'theme.js' | asset_url | script_tag }}
+
+  {% comment %} ABsmartly Events Publishing (on page unload) {% endcomment %}
+  <script>
+    window.addEventListener('beforeunload', function() {
+      if (window.absmartlySDK && typeof window.absmartlySDK.publish === 'function') {
+        window.absmartlySDK.publish();
+      }
+    });
+  </script>
+</body>
+</html>

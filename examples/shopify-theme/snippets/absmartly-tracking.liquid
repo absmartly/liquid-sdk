@@ -1,0 +1,30 @@
+{% comment %}
+  ABsmartly Event Tracking Snippet
+
+  Usage:
+    {% render 'absmartly-tracking',
+      event: 'page_view',
+      product_id: product.id,
+      collection_id: collection.id
+    %}
+{% endcomment %}
+
+<script>
+  (function() {
+    var eventData = {
+      event: '{{ event }}',
+      {% if product_id %}product_id: {{ product_id }},{% endif %}
+      {% if collection_id %}collection_id: {{ collection_id }},{% endif %}
+      {% if variant_id %}variant_id: {{ variant_id }},{% endif %}
+      {% if price %}price: {{ price }},{% endif %}
+      {% if quantity %}quantity: {{ quantity }},{% endif %}
+      timestamp: Date.now()
+    };
+
+    if (window.absmartly && typeof window.absmartly.track === 'function') {
+      window.absmartly.track('{{ event }}', eventData);
+    } else {
+      console.warn('ABsmartly not initialized');
+    }
+  })();
+</script>

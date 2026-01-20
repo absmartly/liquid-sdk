@@ -1,0 +1,63 @@
+{% comment %}
+  ABsmartly Context Initialization Snippet
+
+  Usage:
+    {% render 'absmartly-init',
+      session_id: customer.id | default: request.cookie.session_id,
+      customer_id: customer.id
+    %}
+
+  This snippet initializes the ABsmartly context with server-side data
+  and makes it available to all other Liquid templates.
+{% endcomment %}
+
+<script>
+  window.absmartlyConfig = {
+    endpoint: '{{ settings.absmartly_endpoint }}',
+    apiKey: '{{ settings.absmartly_api_key }}',
+    application: '{{ shop.name }}',
+    environment: '{{ settings.absmartly_environment | default: 'production' }}',
+    units: {
+      {% if session_id %}session_id: '{{ session_id }}',{% endif %}
+      {% if customer_id %}customer_id: {{ customer_id }}{% endif %}
+    }
+  };
+
+  {% comment %}
+    Context data is pre-fetched server-side and embedded here
+    This eliminates the need for a client-side HTTP request
+  {% endcomment %}
+  window.absmartlyData = {{ absmartly_data | json }};
+
+  {% comment %}
+    Initialize client-side SDK with pre-fetched data
+  {% endcomment %}
+  window.absmartly = {
+    ready: {{ absmartly.ready | json }},
+    experiments: {{ absmartly.experiments | json }},
+
+    treatment: function(experimentName) {
+      return this._call('treatment', experimentName);
+    },
+
+    track: function(goalName, properties) {
+      return this._call('track', goalName, properties);
+    },
+
+    _call: function(method, ...args) {
+      if (typeof window.absmartlySDK !== 'undefined') {
+        return window.absmartlySDK[method](...args);
+      } else {
+        console.warn('ABsmartly SDK not loaded yet');
+        return method === 'treatment' ? 0 : null;
+      }
+    }
+  };
+</script>
+
+{% comment %}
+  Load client-side SDK (optional, for post-load tracking)
+{% endcomment %}
+{% if settings.absmartly_client_sdk_enabled %}
+  <script src="{{ 'absmartly.js' | asset_url }}" defer></script>
+{% endif %}

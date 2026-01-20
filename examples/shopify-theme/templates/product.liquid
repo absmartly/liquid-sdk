@@ -1,0 +1,84 @@
+{% comment %}
+  Product Page with A/B Tests
+
+  Experiments:
+  - exp_product_layout: Test different product page layouts
+  - exp_add_to_cart_button: Test button text and color
+  - product_image_size: Variable for image size
+{% endcomment %}
+
+{% layout 'theme' %}
+
+<div class="product-page">
+  {% comment %} A/B Test: Product Layout {% endcomment %}
+  {% assign layout_variant = 'exp_product_layout' | absmartly_treatment %}
+
+  {% if layout_variant == 0 %}
+    {% comment %} Control: Traditional layout {% endcomment %}
+    <div class="product-layout-traditional">
+      <div class="product-images">
+        {% assign image_size = 'product_image_size' | absmartly_variable: 'large' %}
+        <img src="{{ product.featured_image | img_url: image_size }}"
+             alt="{{ product.title | escape }}">
+
+        {% if product.images.size > 1 %}
+          <div class="product-thumbnails">
+            {% for image in product.images limit: 4 %}
+              <img src="{{ image | img_url: 'small' }}"
+                   alt="{{ product.title | escape }}">
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="product-details">
+        <h1>{{ product.title }}</h1>
+        <div class="product-price">{{ product.price | money }}</div>
+        <div class="product-description">{{ product.description }}</div>
+
+        {% render 'product-add-to-cart-form' %}
+      </div>
+    </div>
+
+  {% elsif layout_variant == 1 %}
+    {% comment %} Treatment: Modern layout with gallery {% endcomment %}
+    <div class="product-layout-modern">
+      <div class="product-gallery">
+        {% for image in product.images %}
+          <img src="{{ image | img_url: 'master' }}"
+               alt="{{ product.title | escape }}"
+               class="gallery-image">
+        {% endfor %}
+      </div>
+
+      <div class="product-info-sticky">
+        <h1>{{ product.title }}</h1>
+        <div class="product-price-large">{{ product.price | money }}</div>
+
+        {% render 'product-add-to-cart-form' %}
+
+        <div class="product-description">{{ product.description }}</div>
+      </div>
+    </div>
+  {% endif %}
+
+  {% comment %} Track page view {% endcomment %}
+  {% render 'absmartly-tracking',
+    event: 'product_view',
+    product_id: product.id,
+    variant: layout_variant,
+    price: product.price
+  %}
+</div>
+
+{% comment %} Add to cart tracking {% endcomment %}
+<script>
+  document.querySelector('form[action="/cart/add"]').addEventListener('submit', function(e) {
+    window.absmartly.track('add_to_cart', {
+      product_id: {{ product.id }},
+      variant_id: e.target.querySelector('[name="id"]').value,
+      price: {{ product.price | divided_by: 100.0 }},
+      quantity: parseInt(e.target.querySelector('[name="quantity"]').value) || 1
+    });
+  });
+</script>

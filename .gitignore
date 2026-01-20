@@ -1,0 +1,21 @@
+# Coverage reports
+/coverage/
+
+# Bundler
+/.bundle/
+/vendor/bundle/
+
+# macOS
+.DS_Store
+
+# RSpec
+/spec/examples.txt
+
+# Gem build
+/*.gem
+/pkg/
+
+# IDE
+.idea/
+*.swp
+*.swo
