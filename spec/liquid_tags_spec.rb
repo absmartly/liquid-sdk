@@ -83,6 +83,68 @@ RSpec.describe ABsmartly::Liquid::Tags do
 
       expect(output).to eq('Control')
     end
+
+    it 'handles missing experiment gracefully' do
+      template = Liquid::Template.parse(<<~LIQUID)
+        {% absmartly_treatment 'nonexistent_experiment' %}
+          Variant: {{ variant }}
+        {% endabsmartly_treatment %}
+      LIQUID
+
+      output = template.render('absmartly' => drop)
+
+      expect(output).to match(/Variant: 0/)
+    end
+
+    it 'returns variant 0 when absmartly drop is missing' do
+      template = Liquid::Template.parse(<<~LIQUID)
+        {% absmartly_treatment 'exp_test' %}
+          Variant: {{ variant }}
+        {% endabsmartly_treatment %}
+      LIQUID
+
+      output = template.render({})
+
+      expect(output).to match(/Variant: 0/)
+    end
+
+    it 'continues rendering after treatment block' do
+      template = Liquid::Template.parse(<<~LIQUID)
+        {% absmartly_treatment 'exp_test' %}
+          Treatment
+        {% endabsmartly_treatment %}
+        After Block
+      LIQUID
+
+      output = template.render('absmartly' => drop)
+
+      expect(output).to include('Treatment')
+      expect(output).to include('After Block')
+    end
+
+    it 'raises syntax error for invalid syntax' do
+      expect {
+        Liquid::Template.parse("{% absmartly_treatment %}")
+      }.to raise_error(Liquid::SyntaxError)
+    end
+
+    it 'handles context that is not ready' do
+      not_ready_context = double('context',
+        ready?: false,
+        treatment: 0
+      )
+      not_ready_drop = ABsmartly::Liquid::Drop.new(not_ready_context)
+
+      template = Liquid::Template.parse(<<~LIQUID)
+        {% absmartly_treatment 'exp_test' %}
+          Variant: {{ variant }}
+        {% endabsmartly_treatment %}
+      LIQUID
+
+      output = template.render('absmartly' => not_ready_drop)
+
+      expect(output).to match(/Variant: 0/)
+    end
   end
 
   describe 'TrackTag' do
@@ -113,6 +175,76 @@ RSpec.describe ABsmartly::Liquid::Tags do
 
       template = Liquid::Template.parse(<<~LIQUID)
         {% absmartly_track 'pageview' %}
+      LIQUID
+
+      template.render('absmartly' => drop)
+
+      expect(context.pending_count).to be > initial_pending
+    end
+
+    it 'handles missing absmartly drop gracefully' do
+      template = Liquid::Template.parse(<<~LIQUID)
+        {% absmartly_track 'purchase', amount: 99.99 %}
+      LIQUID
+
+      output = template.render({})
+
+      expect(output.strip).to eq('')
+    end
+
+    it 'raises syntax error for invalid syntax' do
+      expect {
+        Liquid::Template.parse("{% absmartly_track %}")
+      }.to raise_error(Liquid::SyntaxError)
+    end
+  end
+
+  describe 'TreatmentTag attribute parsing' do
+    it 'parses experiment name from variable' do
+      template = Liquid::Template.parse(<<~LIQUID)
+        {% assign exp_name = 'exp_test' %}
+        {% absmartly_treatment exp_name %}
+          Variant: {{ variant }}
+        {% endabsmartly_treatment %}
+      LIQUID
+
+      output = template.render('absmartly' => drop)
+
+      expect(output).to match(/Variant: 0/)
+    end
+
+    it 'parses quoted experiment name' do
+      template = Liquid::Template.parse(<<~LIQUID)
+        {% absmartly_treatment "exp_test" %}
+          Variant: {{ variant }}
+        {% endabsmartly_treatment %}
+      LIQUID
+
+      output = template.render('absmartly' => drop)
+
+      expect(output).to match(/Variant: 0/)
+    end
+  end
+
+  describe 'TrackTag property parsing' do
+    it 'parses variable properties' do
+      initial_pending = context.pending_count
+
+      template = Liquid::Template.parse(<<~LIQUID)
+        {% assign price = 49.99 %}
+        {% absmartly_track 'purchase', amount: price %}
+      LIQUID
+
+      template.render('absmartly' => drop)
+
+      expect(context.pending_count).to be > initial_pending
+    end
+
+    it 'parses string properties' do
+      initial_pending = context.pending_count
+
+      template = Liquid::Template.parse(<<~LIQUID)
+        {% absmartly_track 'signup', source: 'homepage' %}
       LIQUID
 
       template.render('absmartly' => drop)
