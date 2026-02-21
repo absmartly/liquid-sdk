@@ -6,6 +6,9 @@ require 'ostruct'
 
 # Ruby SDK is already loaded via absmartly/liquid which requires 'absmartly'
 
+# Load support files
+Dir[File.join(__dir__, 'support', '**', '*.rb')].each { |f| require f }
+
 SimpleCov.start do
   add_filter '/spec/'
 end
@@ -34,6 +37,7 @@ class TestEventHandler < ContextEventHandler
   end
 
   def publish(context, event)
+    @event_collector.events << event
     self
   end
 end
