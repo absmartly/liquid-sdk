@@ -73,12 +73,18 @@
 
 {% comment %} Add to cart tracking {% endcomment %}
 <script>
-  document.querySelector('form[action="/cart/add"]').addEventListener('submit', function(e) {
-    window.absmartly.track('add_to_cart', {
-      product_id: {{ product.id }},
-      variant_id: e.target.querySelector('[name="id"]').value,
-      price: {{ product.price | divided_by: 100.0 }},
-      quantity: parseInt(e.target.querySelector('[name="quantity"]').value) || 1
+  var addToCartForm = document.querySelector('form[action="/cart/add"]');
+  if (addToCartForm) {
+    addToCartForm.addEventListener('submit', function(e) {
+      var variantInput = e.target.querySelector('[name="id"]');
+      var quantityInput = e.target.querySelector('[name="quantity"]');
+
+      window.absmartly.track('add_to_cart', {
+        product_id: {{ product.id | json }},
+        variant_id: variantInput ? variantInput.value : null,
+        price: {{ product.price | divided_by: 100.0 | json }},
+        quantity: quantityInput ? parseInt(quantityInput.value) || 1 : 1
+      });
     });
-  });
+  }
 </script>

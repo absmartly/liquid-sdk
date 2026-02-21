@@ -1,6 +1,9 @@
 {% comment %}
   ABsmartly Context Initialization Snippet
 
+  SECURITY WARNING: This snippet is for SERVER-SIDE use only.
+  Never expose API keys or credentials client-side.
+
   Usage:
     {% render 'absmartly-init',
       session_id: customer.id | default: request.cookie.session_id,
@@ -9,19 +12,28 @@
 
   This snippet initializes the ABsmartly context with server-side data
   and makes it available to all other Liquid templates.
+
+  IMPORTANT: All values are properly JSON-escaped to prevent XSS attacks.
 {% endcomment %}
 
+{% comment %}
+  Build config object server-side with proper escaping
+{% endcomment %}
+{% capture config_data %}
+{
+  "endpoint": {{ settings.absmartly_endpoint | json }},
+  "application": {{ shop.name | json }},
+  "environment": {{ settings.absmartly_environment | default: 'production' | json }},
+  "units": {
+    {% if session_id %}"session_id": {{ session_id | json }}{% if customer_id %},{% endif %}{% endif %}
+    {% if customer_id %}"customer_id": {{ customer_id | json }}{% endif %}
+  }
+}
+{% endcapture %}
+
 <script>
-  window.absmartlyConfig = {
-    endpoint: '{{ settings.absmartly_endpoint }}',
-    apiKey: '{{ settings.absmartly_api_key }}',
-    application: '{{ shop.name }}',
-    environment: '{{ settings.absmartly_environment | default: 'production' }}',
-    units: {
-      {% if session_id %}session_id: '{{ session_id }}',{% endif %}
-      {% if customer_id %}customer_id: {{ customer_id }}{% endif %}
-    }
-  };
+  /* ABsmartly Client Configuration - Server-Side Rendered */
+  window.absmartlyConfig = {{ config_data | strip | json }};
 
   {% comment %}
     Context data is pre-fetched server-side and embedded here
@@ -44,9 +56,10 @@
       return this._call('track', goalName, properties);
     },
 
-    _call: function(method, ...args) {
+    _call: function(method) {
+      var args = Array.prototype.slice.call(arguments, 1);
       if (typeof window.absmartlySDK !== 'undefined') {
-        return window.absmartlySDK[method](...args);
+        return window.absmartlySDK[method].apply(window.absmartlySDK, args);
       } else {
         console.warn('ABsmartly SDK not loaded yet');
         return method === 'treatment' ? 0 : null;
@@ -57,6 +70,8 @@
 
 {% comment %}
   Load client-side SDK (optional, for post-load tracking)
+  NOTE: Client-side SDK should use a separate, read-only public key
+  if available, never the server-side API key.
 {% endcomment %}
 {% if settings.absmartly_client_sdk_enabled %}
   <script src="{{ 'absmartly.js' | asset_url }}" defer></script>
