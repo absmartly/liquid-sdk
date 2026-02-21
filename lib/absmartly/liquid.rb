@@ -1,6 +1,8 @@
 require 'liquid'
 require 'absmartly'
 
+require 'logger'
+
 module ABsmartly
   module Liquid
     autoload :Drop, 'absmartly/liquid/drop'
@@ -8,7 +10,8 @@ module ABsmartly
     autoload :Tags, 'absmartly/liquid/tags'
 
     class << self
-      attr_accessor :current_context
+      attr_accessor :logger
+      attr_accessor :strict_mode
 
       def register_filters
         ::Liquid::Template.register_filter(Filters)
@@ -24,6 +27,10 @@ module ABsmartly
         register_tags
       end
     end
+
+    self.logger = Logger.new($stdout)
+    self.logger.level = Logger::WARN
+    self.strict_mode = false
   end
 end
 

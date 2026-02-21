@@ -16,13 +16,8 @@ Gem::Specification.new do |spec|
   spec.metadata['source_code_uri'] = 'https://github.com/absmartly/liquid-sdk'
   spec.metadata['changelog_uri'] = 'https://github.com/absmartly/liquid-sdk/blob/main/CHANGELOG.md'
 
-  spec.files = Dir.chdir(File.expand_path(__dir__)) do
-    # Use git ls-files if in git repo, otherwise use Dir.glob
-    if File.directory?('.git')
-      `git ls-files -z`.split("\x0").reject { |f| f.match(%r{\A(?:test|spec|features)/}) }
-    else
-      Dir.glob('**/*').reject { |f| File.directory?(f) || f.match(%r{\A(?:test|spec|features)/}) }
-    end
+  spec.files = Dir['lib/**/*', 'examples/**/*', 'README.md', 'LICENSE', 'CHANGELOG.md'].select do |f|
+    File.file?(f) && !f.match?(%r{\.DS_Store$})
   end
   spec.bindir        = 'exe'
   spec.executables   = spec.files.grep(%r{\Aexe/}) { |f| File.basename(f) }
