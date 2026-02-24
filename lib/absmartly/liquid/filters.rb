@@ -90,10 +90,12 @@ module ABsmartly
       end
 
       def get_absmartly_context
-        drop = @context['absmartly']
-        return nil unless drop
+        drop = @context['absmartly'] if @context
+        if drop
+          return drop.respond_to?(:absmartly_context) ? drop.absmartly_context : nil
+        end
 
-        drop.respond_to?(:absmartly_context) ? drop.absmartly_context : nil
+        ABsmartly::Liquid.current_context
       end
 
       def log_warning(message)

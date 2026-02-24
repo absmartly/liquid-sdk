@@ -20,3 +20,9 @@
 .idea/
 *.swp
 *.swo
+
+.claude/
+.DS_Store
+AUDIT_REPORT.md
+FIXES_IMPLEMENTED.md
+IMPLEMENTATION.md
