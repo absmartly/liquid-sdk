@@ -1,12 +1,16 @@
+require_relative 'logging'
+
 module ABsmartly
   module Liquid
     module Filters
+      include ABsmartly::Liquid::Logging
       def absmartly_treatment(experiment_name)
         with_ready_context(0) do |ctx|
           ctx.treatment(experiment_name)
         end
       rescue StandardError => e
         log_error("ABsmartly treatment error for '#{experiment_name}': #{e.message}")
+        raise if ABsmartly::Liquid.strict_mode
         0
       end
 
@@ -16,6 +20,7 @@ module ABsmartly
         end
       rescue StandardError => e
         log_error("ABsmartly peek error for '#{experiment_name}': #{e.message}")
+        raise if ABsmartly::Liquid.strict_mode
         0
       end
 
@@ -25,6 +30,7 @@ module ABsmartly
         end
       rescue StandardError => e
         log_error("ABsmartly variable error for '#{key}': #{e.message}")
+        raise if ABsmartly::Liquid.strict_mode
         default_value
       end
 
@@ -34,6 +40,7 @@ module ABsmartly
         end
       rescue StandardError => e
         log_error("ABsmartly peek_variable error for '#{key}': #{e.message}")
+        raise if ABsmartly::Liquid.strict_mode
         default_value
       end
 
@@ -43,6 +50,7 @@ module ABsmartly
         end
       rescue StandardError => e
         log_error("ABsmartly custom_field error for '#{experiment_name}.#{field_name}': #{e.message}")
+        raise if ABsmartly::Liquid.strict_mode
         nil
       end
 
@@ -50,14 +58,8 @@ module ABsmartly
         context = get_absmartly_context
 
         unless context
-          log_warning("ABsmartly track: context missing, event '#{goal_name}' dropped")
+          log_warning('ABsmartly context missing, returning fallback value')
           raise 'ABsmartly context not available' if ABsmartly::Liquid.strict_mode
-          return ''
-        end
-
-        unless context.ready?
-          log_warning("ABsmartly track: context not ready, event '#{goal_name}' dropped")
-          raise 'ABsmartly context not ready' if ABsmartly::Liquid.strict_mode
           return ''
         end
 
@@ -90,20 +92,14 @@ module ABsmartly
       end
 
       def get_absmartly_context
-        drop = @context['absmartly'] if @context
-        if drop
-          return drop.respond_to?(:absmartly_context) ? drop.absmartly_context : nil
+        if @context
+          drop = @context['absmartly']
+          if drop
+            return drop.respond_to?(:absmartly_context) ? drop.absmartly_context : nil
+          end
         end
 
         ABsmartly::Liquid.current_context
-      end
-
-      def log_warning(message)
-        ABsmartly::Liquid.logger&.warn("[ABsmartly Liquid SDK] #{message}")
-      end
-
-      def log_error(message)
-        ABsmartly::Liquid.logger&.error("[ABsmartly Liquid SDK] #{message}")
       end
     end
   end
