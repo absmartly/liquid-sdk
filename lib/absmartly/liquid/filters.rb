@@ -55,16 +55,10 @@ module ABsmartly
       end
 
       def absmartly_track(goal_name, properties = {})
-        context = get_absmartly_context
-
-        unless context
-          log_warning('ABsmartly context missing, returning fallback value')
-          raise 'ABsmartly context not available' if ABsmartly::Liquid.strict_mode
-          return ''
+        with_ready_context('') do |ctx|
+          ctx.track(goal_name, properties)
+          ''
         end
-
-        context.track(goal_name, properties)
-        ''
       rescue StandardError => e
         log_error("ABsmartly track error for '#{goal_name}': #{e.message}")
         raise if ABsmartly::Liquid.strict_mode
@@ -92,14 +86,12 @@ module ABsmartly
       end
 
       def get_absmartly_context
-        if @context
-          drop = @context['absmartly']
-          if drop
-            return drop.respond_to?(:absmartly_context) ? drop.absmartly_context : nil
-          end
-        end
+        return nil unless @context
 
-        ABsmartly::Liquid.current_context
+        drop = @context['absmartly']
+        return nil unless drop
+
+        drop.respond_to?(:absmartly_context) ? drop.absmartly_context : nil
       end
     end
   end
