@@ -86,12 +86,15 @@ module ABsmartly
       end
 
       def get_absmartly_context
-        return nil unless @context
+        if @context
+          drop = @context['absmartly']
+          if drop
+            ctx = drop.respond_to?(:absmartly_context) ? drop.absmartly_context : nil
+            return ctx if ctx
+          end
+        end
 
-        drop = @context['absmartly']
-        return nil unless drop
-
-        drop.respond_to?(:absmartly_context) ? drop.absmartly_context : nil
+        ABsmartly::Liquid.current_context
       end
     end
   end
