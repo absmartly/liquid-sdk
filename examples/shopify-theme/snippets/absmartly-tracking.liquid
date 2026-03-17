@@ -15,21 +15,22 @@
 {% comment %}
   Build event data object server-side with proper type checking and escaping
 {% endcomment %}
+{% capture event_fields %}
+  "event": {{ event | json }}
+  {% if product_id %}, "product_id": {{ product_id | json }}{% endif %}
+  {% if collection_id %}, "collection_id": {{ collection_id | json }}{% endif %}
+  {% if variant_id %}, "variant_id": {{ variant_id | json }}{% endif %}
+  {% if price %}, "price": {{ price | json }}{% endif %}
+  {% if quantity %}, "quantity": {{ quantity | json }}{% endif %}
+  , "timestamp": null
+{% endcapture %}
 {% capture event_data %}
-{
-  "event": {{ event | json }},
-  {% if product_id %}"product_id": {{ product_id | json }},{% endif %}
-  {% if collection_id %}"collection_id": {{ collection_id | json }},{% endif %}
-  {% if variant_id %}"variant_id": {{ variant_id | json }},{% endif %}
-  {% if price %}"price": {{ price | json }},{% endif %}
-  {% if quantity %}"quantity": {{ quantity | json }},{% endif %}
-  "timestamp": null
-}
+{ {{ event_fields | strip }} }
 {% endcapture %}
 
 <script>
   (function() {
-    var eventData = {{ event_data | strip }};
+    var eventData = JSON.parse({{ event_data | strip | json }});
     eventData.timestamp = Date.now();
 
     if (window.absmartly && typeof window.absmartly.track === 'function') {

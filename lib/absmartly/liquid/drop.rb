@@ -1,6 +1,9 @@
+require_relative 'logging'
+
 module ABsmartly
   module Liquid
     class Drop < ::Liquid::Drop
+      include ABsmartly::Liquid::Logging
       attr_reader :absmartly_context
 
       def initialize(absmartly_context)
@@ -99,8 +102,7 @@ module ABsmartly
 
       def track(goal_name, properties = nil)
         validate_goal_name(goal_name)
-        result = @absmartly_context.track(goal_name, properties)
-        result
+        @absmartly_context.track(goal_name, properties)
       rescue StandardError => e
         log_error("Error in track for '#{goal_name}': #{e.message}")
         raise if ABsmartly::Liquid.strict_mode
@@ -116,8 +118,7 @@ module ABsmartly
       end
 
       def units
-        sanitized_units = @absmartly_context.units.dup
-        sanitized_units
+        @absmartly_context.units.dup
       rescue StandardError => e
         log_error("Error retrieving units: #{e.message}")
         raise if ABsmartly::Liquid.strict_mode
@@ -126,33 +127,28 @@ module ABsmartly
 
       private
 
-      def validate_experiment_name(name)
-        return if name.is_a?(String) && !name.empty?
+      def validate_non_empty_string(value, label)
+        return if value.is_a?(String) && !value.empty?
 
-        raise ArgumentError, 'Experiment name must be a non-empty string'
+        raise ArgumentError, "#{label} must be a non-empty string"
+      end
+
+      def validate_experiment_name(name)
+        validate_non_empty_string(name, 'Experiment name')
       end
 
       def validate_variable_key(key)
-        return if key.is_a?(String) && !key.empty?
-
-        raise ArgumentError, 'Variable key must be a non-empty string'
+        validate_non_empty_string(key, 'Variable key')
       end
 
       def validate_field_name(name)
-        return if name.is_a?(String) && !name.empty?
-
-        raise ArgumentError, 'Field name must be a non-empty string'
+        validate_non_empty_string(name, 'Field name')
       end
 
       def validate_goal_name(name)
-        return if name.is_a?(String) && !name.empty?
-
-        raise ArgumentError, 'Goal name must be a non-empty string'
+        validate_non_empty_string(name, 'Goal name')
       end
 
-      def log_error(message)
-        ABsmartly::Liquid.logger&.error("[ABsmartly Liquid SDK] #{message}")
-      end
     end
   end
 end

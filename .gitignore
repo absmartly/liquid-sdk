@@ -6,7 +6,6 @@
 /vendor/bundle/
 
 # macOS
-.DS_Store
 **/.DS_Store
 
 # RSpec
@@ -22,7 +21,5 @@
 *.swo
 
 .claude/
-.DS_Store
 AUDIT_REPORT.md
 FIXES_IMPLEMENTED.md
-IMPLEMENTATION.md

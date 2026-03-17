@@ -37,7 +37,7 @@ class TestEventHandler < ContextEventHandler
   end
 
   def publish(context, event)
-    @event_collector.events << event
+    @event_collector.handle_event(:publish, event)
     self
   end
 end

@@ -106,7 +106,7 @@ Note: The Liquid SDK renders templates server-side, so inline scripts are common
 
 ### Context Injection Required
 
-The SDK **requires** explicit context injection via the Drop object. The previous global fallback (`ABsmartly::Liquid.current_context`) has been removed as it was thread-unsafe and caused cross-user data contamination.
+The SDK **requires** explicit context injection via the Drop object. The global fallback (`ABsmartly::Liquid.current_context`) has been removed as it was thread-unsafe and caused cross-user data contamination.
 
 **Correct Setup:**
 
@@ -130,7 +130,7 @@ end
 **Never:**
 - Use a shared global context across requests
 - Reuse context objects between requests
-- Set `ABsmartly::Liquid.current_context` (removed in latest version)
+- Set `ABsmartly::Liquid.current_context` (removed — use Drop injection instead)
 
 ## Privacy Considerations
 

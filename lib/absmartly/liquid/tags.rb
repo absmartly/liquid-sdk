@@ -1,7 +1,10 @@
+require_relative 'logging'
+
 module ABsmartly
   module Liquid
     module Tags
       class TreatmentTag < ::Liquid::Block
+        include ABsmartly::Liquid::Logging
         def initialize(tag_name, markup, options)
           super
 
@@ -37,18 +40,10 @@ module ABsmartly
           end
         end
 
-        private
-
-        def log_warning(message)
-          ABsmartly::Liquid.logger&.warn("[ABsmartly Liquid SDK] #{message}")
-        end
-
-        def log_error(message)
-          ABsmartly::Liquid.logger&.error("[ABsmartly Liquid SDK] #{message}")
-        end
       end
 
       class TrackTag < ::Liquid::Tag
+        include ABsmartly::Liquid::Logging
         def initialize(tag_name, markup, options)
           super
 
@@ -101,13 +96,6 @@ module ABsmartly
           properties
         end
 
-        def log_warning(message)
-          ABsmartly::Liquid.logger&.warn("[ABsmartly Liquid SDK] #{message}")
-        end
-
-        def log_error(message)
-          ABsmartly::Liquid.logger&.error("[ABsmartly Liquid SDK] #{message}")
-        end
       end
     end
   end

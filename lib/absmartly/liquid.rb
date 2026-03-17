@@ -13,6 +13,7 @@ module ABsmartly
     class << self
       attr_accessor :logger
       attr_accessor :strict_mode
+      attr_accessor :current_context
 
       def register_filters
         ::Liquid::Template.register_filter(Filters)
