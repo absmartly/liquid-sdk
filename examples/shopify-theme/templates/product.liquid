@@ -79,12 +79,14 @@
       var variantInput = e.target.querySelector('[name="id"]');
       var quantityInput = e.target.querySelector('[name="quantity"]');
 
-      window.absmartly.track('add_to_cart', {
-        product_id: {{ product.id | json }},
-        variant_id: variantInput ? variantInput.value : null,
-        price: {{ product.price | divided_by: 100.0 | json }},
-        quantity: quantityInput ? parseInt(quantityInput.value) || 1 : 1
-      });
+      if (window.absmartly && typeof window.absmartly.track === 'function') {
+        window.absmartly.track('add_to_cart', {
+          product_id: {{ product.id | json }},
+          variant_id: variantInput ? variantInput.value : null,
+          price: {{ product.price | divided_by: 100.0 | json }},
+          quantity: quantityInput ? parseInt(quantityInput.value) || 1 : 1
+        });
+      }
     });
   }
 </script>

@@ -63,7 +63,7 @@ Or even better, build the entire object server-side:
 {% endcapture %}
 
 <script>
-  var config = {{ config_data | strip | json }};
+  var config = {{ config_data | strip }};
 </script>
 ```
 
@@ -106,7 +106,7 @@ Note: The Liquid SDK renders templates server-side, so inline scripts are common
 
 ### Context Injection Required
 
-The SDK **requires** explicit context injection via the Drop object. The global fallback (`ABsmartly::Liquid.current_context`) has been removed as it was thread-unsafe and caused cross-user data contamination.
+The SDK **requires** explicit context injection via the Drop object. The global accessor (`ABsmartly::Liquid.current_context`) remains available but is strongly discouraged — it is thread-unsafe and can cause cross-user data contamination in multi-threaded environments.
 
 **Correct Setup:**
 
