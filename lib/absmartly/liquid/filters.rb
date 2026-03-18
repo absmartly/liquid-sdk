@@ -55,10 +55,10 @@ module ABsmartly
       end
 
       def absmartly_track(goal_name, properties = {})
-        context = get_absmartly_context
-        return '' unless context
-        context.track(goal_name, properties)
-        ''
+        with_ready_context('') do |ctx|
+          ctx.track(goal_name, properties)
+          ''
+        end
       rescue StandardError => e
         log_error("ABsmartly track error for '#{goal_name}': #{e.message}")
         raise if ABsmartly::Liquid.strict_mode
