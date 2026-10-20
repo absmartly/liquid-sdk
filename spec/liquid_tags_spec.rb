@@ -252,4 +252,25 @@ RSpec.describe ABsmartly::Liquid::Tags do
       expect(context.pending_count).to be > initial_pending
     end
   end
+
+  describe 'duck-typed facades without ready?' do
+    let(:facade) do
+      Class.new do
+        attr_reader :tracked
+        def to_liquid = self
+        def treatment(_name) = 2
+        def track(goal, props) = (@tracked = [goal, props])
+      end.new
+    end
+
+    it 'still invokes treatment' do
+      out = Liquid::Template.parse("{% absmartly_treatment 'exp' %}v={{ variant }}{% endabsmartly_treatment %}").render('absmartly' => facade)
+      expect(out.strip).to eq('v=2')
+    end
+
+    it 'still invokes track' do
+      Liquid::Template.parse("{% absmartly_track 'goal', a: 5 %}").render('absmartly' => facade)
+      expect(facade.tracked).to eq(['goal', { 'a' => '5' }])
+    end
+  end
 end

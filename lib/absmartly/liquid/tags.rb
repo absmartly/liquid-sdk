@@ -20,7 +20,7 @@ module ABsmartly
           experiment_name = context.evaluate(@experiment_name)
           absmartly = context['absmartly']
 
-          variant = if absmartly && absmartly.respond_to?(:ready?) && absmartly.ready?
+          variant = if absmartly && (!absmartly.respond_to?(:ready?) || absmartly.ready?)
             begin
               absmartly.treatment(experiment_name)
             rescue StandardError => e
@@ -52,7 +52,6 @@ module ABsmartly
             raise ::Liquid::SyntaxError, "Syntax Error in 'absmartly_track' - Valid syntax: {% absmartly_track 'goal_name', key: value %}. Goal names may contain letters, numbers, underscores, hyphens, and dots."
           end
 
-          # Split by comma to separate goal name from properties
           parts = markup_trimmed.split(',', 2)
           @goal_name = ::Liquid::Expression.parse(parts[0].strip)
           @properties_markup = parts[1]&.strip
@@ -64,7 +63,7 @@ module ABsmartly
 
           absmartly = context['absmartly']
 
-          if absmartly && absmartly.respond_to?(:ready?) && absmartly.ready?
+          if absmartly && (!absmartly.respond_to?(:ready?) || absmartly.ready?)
             begin
               absmartly.track(goal_name, properties)
             rescue StandardError => e
