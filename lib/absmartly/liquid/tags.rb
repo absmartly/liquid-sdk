@@ -84,7 +84,7 @@ module ABsmartly
         def parse_properties(context)
           return {} unless @properties_markup
 
-          properties = @properties_markup.scan(/([\w\-\.]+):\s*([^,]+)/).to_h do |key, value|
+          properties = @properties_markup.scan(/([\w\-\.]+):\s*((?:'[^']*'|"[^"]*"|[^,])+)/).to_h do |key, value|
             evaluated = context.evaluate(value.strip)
             [key, evaluated]
           end
