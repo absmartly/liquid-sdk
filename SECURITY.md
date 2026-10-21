@@ -130,7 +130,7 @@ end
 **Never:**
 - Use a shared global context across requests
 - Reuse context objects between requests
-- Set `ABsmartly::Liquid.current_context` (removed — use Drop injection instead)
+- Set `ABsmartly::Liquid.current_context` (deprecated global fallback, thread-unsafe — use Drop injection instead)
 
 ## Privacy Considerations
 

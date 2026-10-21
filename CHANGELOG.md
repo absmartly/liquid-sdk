@@ -13,11 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added security documentation for safe template usage
 
 ### Fixed
-- Removed thread-unsafe global state (`current_context`) to prevent cross-user data contamination
+- Filters prefer the Drop-injected context over the thread-unsafe global `current_context` to prevent cross-user data contamination (the global accessor remains as a deprecated fallback)
 - Added comprehensive exception handling throughout SDK to prevent page crashes
 - Added `ready?` checks consistently across all tags and filters
 - Fixed regex patterns to support experiment names with hyphens and dots
-- Fixed track filter to check `ready?` consistently with other filters
 - Fixed Drop methods to return results from track operations
 - Added input validation for all Drop methods
 - Fixed null reference errors in example templates
@@ -30,13 +29,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Warnings when tracking events are dropped
 
 ### Changed
-- Removed global fallback in filters (now requires explicit Drop injection)
+- `absmartly_track` filter and tag no longer drop events when the context is not ready; the underlying SDK queues them (matches JS `track()`, which only rejects finalized contexts)
 - Improved property parsing in TrackTag to handle more complex values
 - Changed Drop to use `attr_reader` for cleaner code
 - Simplified filter implementations using `with_ready_context` helper
 
 ### Removed
-- Removed `ABsmartly::Liquid.current_context` global variable (thread-unsafe)
 - Removed duplicate `liquid` dependency from Gemfile
 - Removed unused `rack-test` dependency from Gemfile
 - Removed `.DS_Store` files from repository

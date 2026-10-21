@@ -63,7 +63,8 @@ module ABsmartly
 
           absmartly = context['absmartly']
 
-          if absmartly && (!absmartly.respond_to?(:ready?) || absmartly.ready?)
+          # No ready? gate: JS track() queues events before the context is ready.
+          if absmartly
             begin
               absmartly.track(goal_name, properties)
             rescue StandardError => e
@@ -71,8 +72,8 @@ module ABsmartly
               raise if ABsmartly::Liquid.strict_mode
             end
           else
-            log_warning("ABsmartly context missing or not ready, event '#{goal_name}' dropped")
-            raise 'ABsmartly context not available or not ready' if ABsmartly::Liquid.strict_mode
+            log_warning("ABsmartly context missing, event '#{goal_name}' dropped")
+            raise 'ABsmartly context not available' if ABsmartly::Liquid.strict_mode
           end
 
           ''

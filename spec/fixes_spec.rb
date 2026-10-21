@@ -70,13 +70,23 @@ RSpec.describe 'Fix plan validations' do
       expect(output).to eq('')
     end
 
-    it 'returns empty string when context not ready' do
+    it 'still tracks (queues) when context not ready, as JS track() does' do
       not_ready_ctx = double('context', ready?: false)
+      expect(not_ready_ctx).to receive(:track).with('purchase', {})
       not_ready_drop = ABsmartly::Liquid::Drop.new(not_ready_ctx)
 
       template = Liquid::Template.parse("{{ 'purchase' | absmartly_track }}")
       output = template.render('absmartly' => not_ready_drop)
       expect(output).to eq('')
+    end
+
+    it 'tag also tracks when context not ready' do
+      not_ready_ctx = double('context', ready?: false)
+      expect(not_ready_ctx).to receive(:track).with('purchase', {})
+      not_ready_drop = ABsmartly::Liquid::Drop.new(not_ready_ctx)
+
+      template = Liquid::Template.parse("{% absmartly_track 'purchase' %}")
+      expect(template.render('absmartly' => not_ready_drop)).to eq('')
     end
 
     it 'tracks successfully when context is ready' do

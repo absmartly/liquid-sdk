@@ -55,10 +55,16 @@ module ABsmartly
       end
 
       def absmartly_track(goal_name, properties = {})
-        with_ready_context('') do |ctx|
-          ctx.track(goal_name, properties)
-          ''
+        # JS track() only checks "not finalized", never "ready": events tracked
+        # before the context is ready are queued by the SDK, so do not gate on ready?.
+        ctx = get_absmartly_context
+        unless ctx
+          log_warning("ABsmartly context missing, event '#{goal_name}' dropped")
+          raise 'ABsmartly context not available' if ABsmartly::Liquid.strict_mode
+          return ''
         end
+        ctx.track(goal_name, properties)
+        ''
       rescue StandardError => e
         log_error("ABsmartly track error for '#{goal_name}': #{e.message}")
         raise if ABsmartly::Liquid.strict_mode
