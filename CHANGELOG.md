@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (BREAKING)
+- `absmartly_treatment`, `absmartly_peek`, `absmartly_variable`, `absmartly_peek_variable` and `absmartly_custom_field` no longer return a fallback when the context is not yet ready. They call the SDK, which raises "ABsmartly Context is not yet ready.", and that error is raised from the filter in every mode. The `{% absmartly_treatment %}` tag and the Drop read methods (`treatment`, `peek`, `variable`, `peek_variable`, `custom_field`) behave the same way (matching the JavaScript SDK). Wait for the context to be ready before rendering these filters.
+
 ### Security
 - Fixed XSS vulnerabilities in example templates by using proper JSON escaping
 - Removed API key exposure from client-side example templates

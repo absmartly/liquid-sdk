@@ -129,10 +129,9 @@ RSpec.describe ABsmartly::Liquid::Tags do
     end
 
     it 'handles context that is not ready' do
-      not_ready_context = double('context',
-        ready?: false,
-        treatment: 0
-      )
+      not_ready_context = double('context', ready?: false)
+      allow(not_ready_context).to receive(:treatment)
+        .and_raise(IllegalStateException.new('ABsmartly Context is not yet ready.'))
       not_ready_drop = ABsmartly::Liquid::Drop.new(not_ready_context)
 
       template = Liquid::Template.parse(<<~LIQUID)
@@ -141,9 +140,8 @@ RSpec.describe ABsmartly::Liquid::Tags do
         {% endabsmartly_treatment %}
       LIQUID
 
-      output = template.render('absmartly' => not_ready_drop)
-
-      expect(output).to match(/Variant: 0/)
+      expect { template.render!('absmartly' => not_ready_drop) }
+        .to raise_error(IllegalStateException, 'ABsmartly Context is not yet ready.')
     end
   end
 

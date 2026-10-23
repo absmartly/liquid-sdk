@@ -4,10 +4,23 @@ module ABsmartly
   module Liquid
     module Filters
       include ABsmartly::Liquid::Logging
+
+      # Wraps the SDK error raised by a read on a context that is not yet ready.
+      # It carries the SDK's message and is never converted into a fallback.
+      class NotReadyError < StandardError
+        attr_reader :cause_error
+
+        def initialize(error)
+          @cause_error = error
+          super(error.message)
+        end
+      end
       def absmartly_treatment(experiment_name)
         with_ready_context(0) do |ctx|
           ctx.treatment(experiment_name)
         end
+      rescue NotReadyError => e
+        raise e.cause_error
       rescue StandardError => e
         log_error("ABsmartly treatment error for '#{experiment_name}': #{e.message}")
         raise if ABsmartly::Liquid.strict_mode
@@ -18,6 +31,8 @@ module ABsmartly
         with_ready_context(0) do |ctx|
           ctx.peek_treatment(experiment_name)
         end
+      rescue NotReadyError => e
+        raise e.cause_error
       rescue StandardError => e
         log_error("ABsmartly peek error for '#{experiment_name}': #{e.message}")
         raise if ABsmartly::Liquid.strict_mode
@@ -28,6 +43,8 @@ module ABsmartly
         with_ready_context(default_value) do |ctx|
           ctx.variable_value(key, default_value)
         end
+      rescue NotReadyError => e
+        raise e.cause_error
       rescue StandardError => e
         log_error("ABsmartly variable error for '#{key}': #{e.message}")
         raise if ABsmartly::Liquid.strict_mode
@@ -38,6 +55,8 @@ module ABsmartly
         with_ready_context(default_value) do |ctx|
           ctx.peek_variable_value(key, default_value)
         end
+      rescue NotReadyError => e
+        raise e.cause_error
       rescue StandardError => e
         log_error("ABsmartly peek_variable error for '#{key}': #{e.message}")
         raise if ABsmartly::Liquid.strict_mode
@@ -48,6 +67,8 @@ module ABsmartly
         with_ready_context(nil) do |ctx|
           ctx.custom_field_value(experiment_name, field_name)
         end
+      rescue NotReadyError => e
+        raise e.cause_error
       rescue StandardError => e
         log_error("ABsmartly custom_field error for '#{experiment_name}.#{field_name}': #{e.message}")
         raise if ABsmartly::Liquid.strict_mode
@@ -82,10 +103,14 @@ module ABsmartly
           return fallback
         end
 
+        # Reads before the context is ready raise the SDK's own not-ready error
+        # in every mode (matching the JS SDK); it is not turned into a fallback.
         unless context.ready?
-          log_warning('ABsmartly context not ready, returning fallback value')
-          raise 'ABsmartly context not ready' if ABsmartly::Liquid.strict_mode
-          return fallback
+          begin
+            return yield context
+          rescue StandardError => e
+            raise NotReadyError.new(e)
+          end
         end
 
         yield context

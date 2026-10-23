@@ -58,6 +58,7 @@ module ABsmartly
         validate_experiment_name(experiment_name)
         @absmartly_context.treatment(experiment_name)
       rescue StandardError => e
+        raise if sdk_not_ready?
         log_error("Error in treatment for '#{experiment_name}': #{e.message}")
         raise if ABsmartly::Liquid.strict_mode
         0
@@ -67,6 +68,7 @@ module ABsmartly
         validate_experiment_name(experiment_name)
         @absmartly_context.peek_treatment(experiment_name)
       rescue StandardError => e
+        raise if sdk_not_ready?
         log_error("Error in peek for '#{experiment_name}': #{e.message}")
         raise if ABsmartly::Liquid.strict_mode
         0
@@ -76,6 +78,7 @@ module ABsmartly
         validate_variable_key(key)
         @absmartly_context.variable_value(key, default_value)
       rescue StandardError => e
+        raise if sdk_not_ready?
         log_error("Error in variable for '#{key}': #{e.message}")
         raise if ABsmartly::Liquid.strict_mode
         default_value
@@ -85,6 +88,7 @@ module ABsmartly
         validate_variable_key(key)
         @absmartly_context.peek_variable_value(key, default_value)
       rescue StandardError => e
+        raise if sdk_not_ready?
         log_error("Error in peek_variable for '#{key}': #{e.message}")
         raise if ABsmartly::Liquid.strict_mode
         default_value
@@ -95,6 +99,7 @@ module ABsmartly
         validate_field_name(field_name)
         @absmartly_context.custom_field_value(experiment_name, field_name)
       rescue StandardError => e
+        raise if sdk_not_ready?
         log_error("Error in custom_field for '#{experiment_name}.#{field_name}': #{e.message}")
         raise if ABsmartly::Liquid.strict_mode
         nil
@@ -126,6 +131,15 @@ module ABsmartly
       end
 
       private
+
+      # SDK reads on a context that is not yet ready raise the SDK's not-ready
+      # error; it is raised in every mode (matching the JS SDK), not replaced
+      # by a fallback.
+      def sdk_not_ready?
+        @absmartly_context.respond_to?(:ready?) && !@absmartly_context.ready?
+      rescue StandardError
+        false
+      end
 
       def validate_non_empty_string(value, label)
         return if value.is_a?(String) && !value.empty?

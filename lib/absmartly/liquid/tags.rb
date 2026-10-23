@@ -20,7 +20,11 @@ module ABsmartly
           experiment_name = context.evaluate(@experiment_name)
           absmartly = context['absmartly']
 
-          variant = if absmartly && (!absmartly.respond_to?(:ready?) || absmartly.ready?)
+          variant = if absmartly && absmartly.respond_to?(:ready?) && !absmartly.ready?
+            # Not ready: the SDK raises its own not-ready error, which is
+            # raised in every mode (matching the JS SDK) rather than rendering control.
+            absmartly.treatment(experiment_name)
+          elsif absmartly
             begin
               absmartly.treatment(experiment_name)
             rescue StandardError => e
@@ -29,8 +33,8 @@ module ABsmartly
               0
             end
           else
-            log_warning("ABsmartly context missing or not ready for treatment '#{experiment_name}', returning control variant")
-            raise 'ABsmartly context not available or not ready' if ABsmartly::Liquid.strict_mode
+            log_warning("ABsmartly context missing for treatment '#{experiment_name}', returning control variant")
+            raise 'ABsmartly context not available' if ABsmartly::Liquid.strict_mode
             0
           end
 
