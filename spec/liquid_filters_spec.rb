@@ -57,15 +57,35 @@ RSpec.describe ABsmartly::Liquid::Filters do
       expect(context.pending_count).to be >= 1
     end
 
-    it 'returns 0 when context not ready' do
+    it 'propagates the SDK not-ready error instead of returning a fallback' do
       ctx = double('context', ready?: false)
-      allow(ctx).to receive(:treatment).and_return(0)
+      allow(ctx).to receive(:treatment).and_raise(IllegalStateException.new('ABsmartly Context is not yet ready.'))
       drop = ABsmartly::Liquid::Drop.new(ctx)
 
       template = Liquid::Template.parse("{{ 'exp_test' | absmartly_treatment }}")
-      output = template.render('absmartly' => drop)
+      expect { template.render!('absmartly' => drop) }
+        .to raise_error(IllegalStateException, 'ABsmartly Context is not yet ready.')
+    end
 
-      expect(output).to eq('0')
+    %w[absmartly_peek].each do |filter|
+      it "#{filter} propagates the SDK not-ready error" do
+        ctx = double('context', ready?: false)
+        allow(ctx).to receive(:peek_treatment).and_raise(IllegalStateException.new('ABsmartly Context is not yet ready.'))
+        template = Liquid::Template.parse("{{ 'exp_test' | #{filter} }}")
+        expect { template.render!('absmartly' => ABsmartly::Liquid::Drop.new(ctx)) }
+          .to raise_error(IllegalStateException, /not yet ready/)
+      end
+    end
+
+    it 'variable filters propagate the SDK not-ready error' do
+      ctx = double('context', ready?: false)
+      allow(ctx).to receive(:variable_value).and_raise(IllegalStateException.new('ABsmartly Context is not yet ready.'))
+      allow(ctx).to receive(:peek_variable_value).and_raise(IllegalStateException.new('ABsmartly Context is not yet ready.'))
+      drop = ABsmartly::Liquid::Drop.new(ctx)
+      ["{{ 'k' | absmartly_variable: 'd' }}", "{{ 'k' | absmartly_peek_variable: 'd' }}"].each do |src|
+        expect { Liquid::Template.parse(src).render!('absmartly' => drop) }
+          .to raise_error(IllegalStateException, /not yet ready/)
+      end
     end
   end
 

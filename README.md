@@ -1,49 +1,21 @@
-# ABsmartly SDK for Shopify Liquid
+# ABsmartly Liquid SDK
 
-A/B Smartly SDK for Shopify Liquid templating language with server-side rendering support.
-
-## Overview
-
-This SDK enables A/B testing in Shopify stores using Liquid templates. It provides Liquid filters, tags, and drops (objects) that integrate with ABsmartly's experimentation platform.
-
-**Architecture:**
-- Ruby backend SDK (handles HTTP, variant assignment, hashing)
-- Liquid filters and tags for template integration
-- Server-side context initialization and caching
-- Shopify theme integration
+A/B testing SDK for [Shopify Liquid](https://shopify.github.io/liquid/) templating language and [Jekyll](https://jekyllrb.com/) static site generator. This SDK brings the power of ABsmartly's experimentation platform to server-side rendered templates.
 
 ## Compatibility
 
-- Shopify Liquid templates
-- Ruby 2.7+ (Shopify backend)
-- Works with Shopify themes and apps
+The ABsmartly Liquid SDK is compatible with:
+
+- **Ruby**: Version 3.0 and later
+- **Liquid**: Version 5.0 and later
+- **Shopify Themes**: All modern Shopify themes
+- **Jekyll**: Version 4.0 and later
+
+**Note on Naming:** This SDK uses the module name `ABsmartly::Liquid` (with namespace) to avoid clashing with the Ruby SDK's main module (`Absmartly`). When requiring the gem, use `require 'absmartly/liquid'`.
 
 ## Installation
 
-### For Shopify Themes
-
-1. Add the ABsmartly Liquid SDK files to your theme:
-
-```
-assets/
-  absmartly.js        # Client-side tracking (optional)
-snippets/
-  absmartly-init.liquid   # Initialization snippet
-  absmartly-tracking.liquid  # Tracking snippet
-```
-
-2. Add initialization to your `theme.liquid`:
-
-```liquid
-{% render 'absmartly-init',
-  session_id: customer.id | default: request.cookie.session_id,
-  customer_id: customer.id
-%}
-```
-
-### For Shopify Apps
-
-Add to your Gemfile:
+Add to your `Gemfile`:
 
 ```ruby
 gem 'absmartly-liquid-sdk'
@@ -55,42 +27,120 @@ Then run:
 bundle install
 ```
 
-## Quick Start
+For Jekyll sites, also add to your `_config.yml`:
 
-### 1. Initialize Context (Server-Side)
+```yaml
+plugins:
+  - absmartly-liquid-sdk
+```
 
-In your Shopify app controller or theme:
+## Getting Started
+
+Please follow the [installation](#installation) instructions before trying the following code.
+
+### Initialization
+
+This example assumes an API Key, an Application, and an Environment have been created in the ABsmartly web console.
 
 ```ruby
-# Initialize SDK
+require 'absmartly/liquid'
+
 sdk = ABSmartly::SDK.new(
-  endpoint: 'https://your-endpoint.absmartly.io/v1',
+  endpoint: 'https://your-company.absmartly.io/v1',
   api_key: ENV['ABSMARTLY_API_KEY'],
-  application: 'shopify-store',
+  application: 'my-shopify-store',
   environment: 'production'
 )
+```
 
-# Create context
-@absmartly_context = sdk.create_context(
+#### With Optional Parameters
+
+```ruby
+sdk = ABSmartly::SDK.new(
+  endpoint: 'https://your-company.absmartly.io/v1',
+  api_key: ENV['ABSMARTLY_API_KEY'],
+  application: 'my-shopify-store',
+  environment: 'production',
+  retries: 3,
+  timeout: 5000
+)
+```
+
+**SDK Options**
+
+| Option       | Type      | Required? | Default | Description                                                                                                                                                                   |
+| :----------- | :-------- | :-------: | :-----: | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| endpoint     | `String`  |  &#9989;  |  `nil`  | The URL to your API endpoint. Most commonly `"https://your-company.absmartly.io/v1"`                                                                                         |
+| api_key      | `String`  |  &#9989;  |  `nil`  | Your API key which can be found on the Web Console.                                                                                                                           |
+| environment  | `String`  |  &#9989;  |  `nil`  | The environment of the platform where the SDK is installed. Environments are created on the Web Console.                                                                      |
+| application  | `String`  |  &#9989;  |  `nil`  | The name of the application where the SDK is installed. Applications are created on the Web Console.                                                                          |
+| retries      | `Integer` | &#10060;  |   `5`   | Maximum number of HTTP retries for failed requests                                                                                                                            |
+| timeout      | `Integer` | &#10060;  | `3000`  | HTTP timeout in milliseconds                                                                                                                                                  |
+| event_logger | `Proc`    | &#10060;  |  `nil`  | Custom event logger callback (see Advanced section)                                                                                                                           |
+
+## Creating a New Context
+
+### Synchronously
+
+```ruby
+context = sdk.create_context(
   units: {
     session_id: session[:id],
     customer_id: current_customer&.id
   }
 )
 
-# Wait for ready
-@absmartly_context.ready
+context.ready
 
-# Make context available to Liquid
-@absmartly_data = {
-  'context_data' => @absmartly_context.data.to_json,
-  'units' => @absmartly_context.get_units
-}
+drop = ABSmartly::Liquid::Drop.new(context)
 ```
 
-### 2. Use in Liquid Templates
+### With Pre-fetched Data
 
-#### Treatment Assignment
+For better performance, pre-fetch context data and reuse it to avoid an additional round-trip.
+
+```ruby
+data = sdk.get_client.get_context(
+  units: { session_id: session[:id] }
+)
+
+context = sdk.create_context_with(
+  { units: { session_id: session[:id] } },
+  data
+)
+
+drop = ABSmartly::Liquid::Drop.new(context)
+```
+
+### Refreshing the Context with Fresh Experiment Data
+
+For long-running contexts, the context is usually created once when the application is first started. However, any experiments started after the context was created will not be triggered.
+
+```ruby
+context = sdk.create_context(
+  units: { session_id: session[:id] },
+  refresh_period: 4 * 60 * 60 * 1000
+)
+
+# Or refresh manually
+context.refresh
+```
+
+### Setting Extra Units
+
+You can add additional units to a context. This may be used, for example, when a user logs in to your application.
+
+**Note:** You cannot override an already set unit type as that would be a change of identity. In this case, you must create a new context instead.
+
+```ruby
+context.set_unit('db_user_id', '1000013')
+```
+
+## Basic Usage
+
+### Treatment Selection with Filters
+
+Use the `absmartly_treatment` filter to select a treatment variant:
 
 ```liquid
 {% assign variant = 'exp_button_color' | absmartly_treatment %}
@@ -102,539 +152,295 @@ sdk = ABSmartly::SDK.new(
 {% endif %}
 ```
 
-#### Variable Access
+### Treatment Selection with Block Tag
 
-```liquid
-{% assign button_text = 'button_text' | absmartly_variable: 'Buy Now' %}
-<button>{{ button_text }}</button>
-```
-
-#### Peek (Without Tracking)
-
-```liquid
-{% assign variant = 'exp_button_color' | absmartly_peek %}
-```
-
-#### Goal Tracking
-
-```liquid
-{% absmartly_track 'add_to_cart', amount: product.price, quantity: 1 %}
-```
-
-Or use the filter:
-
-```liquid
-{{ 'purchase' | absmartly_track: amount: order.total_price }}
-```
-
-### 3. Client-Side Tracking (Optional)
-
-For tracking after page load:
-
-```liquid
-<script>
-  // ABsmartly context initialized server-side
-  window.absmartly.track('button_click', {
-    variant: {{ variant }},
-    product_id: {{ product.id }}
-  });
-</script>
-```
-
-## Liquid Filters
-
-### `absmartly_treatment`
-
-Get variant and track exposure.
-
-```liquid
-{% assign variant = 'exp_test' | absmartly_treatment %}
-```
-
-**Returns:** Variant number (0, 1, 2, ...)
-
-**Side effect:** Tracks exposure event
-
-### `absmartly_peek`
-
-Get variant without tracking exposure.
-
-```liquid
-{% assign variant = 'exp_test' | absmartly_peek %}
-```
-
-**Returns:** Variant number (0, 1, 2, ...)
-
-**Side effect:** None
-
-### `absmartly_variable`
-
-Get variable value and track exposure.
-
-```liquid
-{% assign value = 'button_color' | absmartly_variable: 'blue' %}
-```
-
-**Parameters:**
-- First argument (pipe input): Variable key
-- Second argument: Default value
-
-**Returns:** Variable value or default
-
-**Side effect:** Tracks exposure event
-
-### `absmartly_peek_variable`
-
-Get variable value without tracking exposure.
-
-```liquid
-{% assign value = 'button_color' | absmartly_peek_variable: 'blue' %}
-```
-
-**Returns:** Variable value or default
-
-**Side effect:** None
-
-### `absmartly_track`
-
-Track goal achievement.
-
-```liquid
-{{ 'purchase' | absmartly_track: amount: order.total_price, items: order.line_items.size }}
-```
-
-**Parameters:**
-- First argument (pipe input): Goal name
-- Named parameters: Goal properties (must be numeric)
-
-**Returns:** Empty string
-
-**Side effect:** Queues goal event for publishing
-
-### `absmartly_custom_field`
-
-Get custom field value.
-
-```liquid
-{% assign metadata = 'exp_test' | absmartly_custom_field: 'metadata' %}
-```
-
-**Returns:** Parsed field value based on type
-
-## Liquid Tags
-
-### `absmartly_treatment`
-
-Block tag for treatment assignment.
+Use the block tag for cleaner syntax with a local `variant` variable:
 
 ```liquid
 {% absmartly_treatment 'exp_button_color' %}
   {% if variant == 0 %}
-    <button class="btn-blue">Control</button>
+    <button class="btn-blue">Buy Now</button>
   {% elsif variant == 1 %}
-    <button class="btn-red">Treatment</button>
+    <button class="btn-red">Buy Now</button>
   {% endif %}
 {% endabsmartly_treatment %}
 ```
 
-Inside the block, `variant` variable is available.
+### Treatment Variables
 
-### `absmartly_track`
-
-Track goal with properties.
-
-```liquid
-{% absmartly_track 'purchase', amount: order.total_price, items: order.line_items.size %}
-```
-
-## Liquid Drops (Objects)
-
-ABsmartly context is available as `absmartly` object in Liquid:
-
-```liquid
-{{ absmartly.experiments }}  <!-- Array of experiment names -->
-{{ absmartly.pending }}      <!-- Number of pending events -->
-{{ absmartly.ready }}        <!-- true/false -->
-```
-
-### Properties
-
-- `ready` (boolean) - Whether context is ready
-- `failed` (boolean) - Whether context failed to load
-- `finalized` (boolean) - Whether context is finalized
-- `experiments` (array) - List of experiment names
-- `pending` (number) - Count of pending events
-
-### Methods
-
-```liquid
-{{ absmartly.treatment('exp_test') }}
-{{ absmartly.peek('exp_test') }}
-{{ absmartly.variable('button_color', 'blue') }}
-{{ absmartly.peek_variable('button_color', 'blue') }}
-{{ absmartly.custom_field('exp_test', 'metadata') }}
-{{ absmartly.track('goal_name', properties) }}
-```
-
-## Server-Side Integration
-
-### Shopify App Example
-
-```ruby
-class ProductsController < ApplicationController
-  before_action :init_absmartly
-
-  def show
-    @product = Product.find(params[:id])
-
-    # Get variant for this user
-    variant = @absmartly.treatment('exp_product_layout')
-
-    # Pass to view
-    @layout_variant = variant
-
-    # Data for Liquid
-    @absmartly_liquid = ABSmartly::LiquidDrop.new(@absmartly)
-  end
-
-  private
-
-  def init_absmartly
-    @absmartly = $absmartly_sdk.create_context(
-      units: {
-        session_id: session[:id],
-        customer_id: current_customer&.id
-      }
-    )
-    @absmartly.ready
-  end
-end
-```
-
-### Theme Liquid Integration
-
-```liquid
-<!-- theme.liquid -->
-{% capture session_id %}{{ request.cookie['_shopify_s'] }}{% endcapture %}
-
-{% render 'absmartly-init',
-  endpoint: 'https://your-endpoint.absmartly.io/v1',
-  api_key: 'your-api-key',
-  session_id: session_id,
-  customer_id: customer.id
-%}
-
-<!-- product.liquid -->
-{% assign layout_variant = 'exp_product_layout' | absmartly_treatment %}
-
-{% if layout_variant == 0 %}
-  {% render 'product-layout-control' %}
-{% elsif layout_variant == 1 %}
-  {% render 'product-layout-treatment' %}
-{% endif %}
-```
-
-## Advanced Usage
-
-### Pre-fetching Context Data
-
-For better performance, pre-fetch context data server-side:
-
-```ruby
-# In controller
-data = sdk.get_client.get_context(units: { session_id: session[:id] })
-
-# Create context with data (no HTTP call)
-@absmartly = sdk.create_context_with(
-  { units: { session_id: session[:id] } },
-  data
-)
-
-# Pass to Liquid
-assigns['absmartly'] = ABSmartly::LiquidDrop.new(@absmartly)
-```
-
-### Caching Context Data
-
-```ruby
-# Cache context data for session
-cache_key = "absmartly:#{session[:id]}"
-data = Rails.cache.fetch(cache_key, expires_in: 5.minutes) do
-  sdk.get_client.get_context(units: { session_id: session[:id] })
-end
-
-@absmartly = sdk.create_context_with({ units: { session_id: session[:id] } }, data)
-```
-
-### Custom Event Logger
-
-```ruby
-class ShopifyEventLogger
-  def handle_event(context, event_name, data)
-    case event_name
-    when 'exposure'
-      # Log to Shopify analytics
-      Analytics.track('absmartly_exposure', data)
-    when 'goal'
-      # Log to your tracking system
-      Tracking.event('absmartly_goal', data)
-    when 'error'
-      # Log errors
-      Rails.logger.error("ABsmartly error: #{data}")
-    end
-  end
-end
-
-sdk = ABSmartly::SDK.new(
-  endpoint: ENV['ABSMARTLY_ENDPOINT'],
-  api_key: ENV['ABSMARTLY_API_KEY'],
-  application: 'shopify-store',
-  environment: Rails.env,
-  event_logger: ShopifyEventLogger.new
-)
-```
-
-### Publishing Events
-
-Events are automatically published, but you can manually publish:
-
-```ruby
-# In controller after action
-@absmartly.publish
-```
-
-Or finalize on session end:
-
-```ruby
-# In ApplicationController
-after_action :finalize_absmartly
-
-def finalize_absmartly
-  @absmartly&.finalize
-end
-```
-
-## Examples
-
-### Product Page A/B Test
-
-```liquid
-<!-- product.liquid -->
-{% assign variant = 'exp_product_images' | absmartly_treatment %}
-
-{% if variant == 0 %}
-  <!-- Control: Single image -->
-  <img src="{{ product.featured_image | img_url: 'large' }}" alt="{{ product.title }}">
-{% elsif variant == 1 %}
-  <!-- Treatment: Image gallery -->
-  <div class="product-gallery">
-    {% for image in product.images %}
-      <img src="{{ image | img_url: 'medium' }}" alt="{{ product.title }}">
-    {% endfor %}
-  </div>
-{% endif %}
-
-<!-- Track add to cart -->
-<form action="/cart/add" method="post">
-  <button type="submit" onclick="absmartly.track('add_to_cart', { product_id: {{ product.id }}, price: {{ product.price }} })">
-    Add to Cart
-  </button>
-</form>
-```
-
-### Checkout Button Text
+Variables allow you to configure experiment variations without code changes:
 
 ```liquid
 {% assign button_text = 'checkout_button_text' | absmartly_variable: 'Checkout' %}
 {% assign button_color = 'checkout_button_color' | absmartly_variable: 'blue' %}
 
-<a href="/checkout" class="btn-{{ button_color }}">
+<a href="/checkout" class="btn btn-{{ button_color }}">
   {{ button_text }}
 </a>
 ```
 
-### Free Shipping Threshold
+### Peek at Treatment Variants
+
+Although generally not recommended, it is sometimes necessary to peek at a treatment without triggering an exposure.
 
 ```liquid
-{% assign free_shipping_threshold = 'free_shipping_threshold' | absmartly_variable: 50 %}
-
-{% if cart.total_price >= free_shipping_threshold %}
-  <div class="free-shipping-banner">
-    🎉 You qualify for free shipping!
-  </div>
-{% else %}
-  {% assign remaining = free_shipping_threshold | minus: cart.total_price %}
-  <div class="free-shipping-progress">
-    Add ${{ remaining }} more for free shipping
-  </div>
-{% endif %}
+{% assign variant = 'exp_feature' | absmartly_peek %}
 ```
 
-### Conversion Tracking
+#### Peeking at Variables
 
 ```liquid
-<!-- Thank you page (checkout complete) -->
-{% if first_time_accessed %}
-  {% absmartly_track 'purchase',
-    amount: order.total_price,
-    items: order.line_items.size,
-    revenue: order.subtotal_price
-  %}
-{% endif %}
+{% assign color = 'button_color' | absmartly_peek_variable: 'blue' %}
 ```
 
-### Feature Flags
+### Overriding Treatment Variants
 
-```liquid
-{% assign show_new_feature = 'feature_new_search' | absmartly_treatment %}
-
-{% if show_new_feature == 1 %}
-  {% render 'search-v2' %}
-{% else %}
-  {% render 'search-v1' %}
-{% endif %}
-```
-
-## Testing
-
-### Unit Tests
+During development, force specific variants:
 
 ```ruby
-require 'minitest/autorun'
-require 'absmartly/liquid'
+context.override('exp_test', 1)
 
-class ABSmartlyLiquidTest < Minitest::Test
-  def setup
-    @sdk = ABSmartly::SDK.new(
-      endpoint: 'https://sandbox.absmartly.io/v1',
-      api_key: 'test-key',
-      application: 'test',
-      environment: 'test'
+context.overrides({
+  'exp_test' => 1,
+  'exp_another' => 0
+})
+```
+
+### Tracking Goals
+
+Track goal achievement with properties:
+
+```liquid
+<!-- Using filter -->
+{{ 'purchase' | absmartly_track: amount: order.total_price, items: order.line_items.size }}
+
+<!-- Using tag -->
+{% absmartly_track 'add_to_cart', product_id: product.id, price: product.price %}
+```
+
+## Advanced
+
+### Context Attributes
+
+Add metadata for audience targeting:
+
+```ruby
+context.attributes({
+  user_agent: request.user_agent,
+  customer_age: 'new_customer',
+  account_type: 'premium'
+})
+```
+
+### Publishing Pending Data
+
+Ensure all events are published before proceeding:
+
+```ruby
+context.publish
+```
+
+### Finalizing
+
+The `close` method will ensure all events have been published to the ABsmartly collector, like `publish`, and will also "seal" the context, preventing any further events from being tracked.
+
+```ruby
+context.close
+```
+
+### Custom Event Logger
+
+Monitor SDK events for debugging, analytics, or integrating with other systems.
+
+```ruby
+event_logger = ->(context, event_name, data) {
+  case event_name
+  when 'exposure'
+    Rails.logger.info "ABsmartly exposure: #{data[:name]}"
+  when 'goal'
+    Rails.logger.info "ABsmartly goal: #{data[:name]}"
+  when 'error'
+    Rails.logger.error "ABsmartly error: #{data}"
+  when 'ready'
+    Rails.logger.info "ABsmartly context ready"
+  when 'refresh'
+    Rails.logger.info "ABsmartly context refreshed"
+  when 'publish'
+    Rails.logger.info "ABsmartly events published"
+  when 'close'
+    Rails.logger.info "ABsmartly context closed"
+  end
+}
+
+sdk = ABSmartly::SDK.new(
+  endpoint: ENV['ABSMARTLY_ENDPOINT'],
+  api_key: ENV['ABSMARTLY_API_KEY'],
+  application: 'my-store',
+  environment: Rails.env,
+  event_logger: event_logger
+)
+```
+
+**Event Types**
+
+| Event      | When                                         | Data                                 |
+| :--------- | :------------------------------------------- | :----------------------------------- |
+| `ready`    | Context turns ready                          | Context initialization data          |
+| `refresh`  | `refresh()` succeeds                         | Refreshed context data               |
+| `publish`  | `publish()` succeeds                         | Published events                     |
+| `exposure` | `treatment()` succeeds on first exposure     | Exposure data                        |
+| `goal`     | `track()` succeeds                           | Goal data                            |
+| `close`    | `close()` succeeds the first time            | `nil`                                |
+| `error`    | Error occurs                                 | Error object                         |
+
+## Liquid API Reference
+
+### Filters
+
+| Filter                    | Description                                     | Returns                          |
+| :------------------------ | :---------------------------------------------- | :------------------------------- |
+| `absmartly_treatment`     | Get treatment variant and track exposure         | Integer variant number (0, 1, ...) |
+| `absmartly_peek`          | Get treatment variant without tracking exposure  | Integer variant number           |
+| `absmartly_variable`      | Get variable value and track exposure            | Variable value or default        |
+| `absmartly_peek_variable` | Get variable value without tracking exposure     | Variable value or default        |
+| `absmartly_custom_field`  | Get custom field value for an experiment         | Parsed field value               |
+| `absmartly_track`         | Track goal achievement with properties           | Empty string                     |
+
+### Tags
+
+| Tag                           | Description                                     |
+| :---------------------------- | :---------------------------------------------- |
+| `{% absmartly_treatment %}` | Block tag for treatment with local `variant` variable |
+| `{% absmartly_track %}`     | Tag for tracking goals with properties           |
+
+### Drop Object
+
+The `absmartly` drop object is available in templates when injected via `ABSmartly::Liquid::Drop.new(context)`:
+
+```liquid
+{% if absmartly.ready %}
+  <!-- Context is ready -->
+{% endif %}
+
+{% for exp in absmartly.experiments %}
+  <li>{{ exp }}</li>
+{% endfor %}
+```
+
+## Platform-Specific Examples
+
+### Using with Shopify / Rails
+
+```ruby
+class ApplicationController < ActionController::Base
+  before_action :init_absmartly
+  after_action :close_absmartly
+
+  private
+
+  def init_absmartly
+    $absmartly_sdk ||= ABSmartly::SDK.new(
+      endpoint: ENV['ABSMARTLY_ENDPOINT'],
+      api_key: ENV['ABSMARTLY_API_KEY'],
+      application: 'my-shopify-store',
+      environment: Rails.env
     )
 
-    @context = @sdk.create_context(units: { session_id: 'test123' })
+    @context = $absmartly_sdk.create_context(
+      units: {
+        session_id: session[:id],
+        customer_id: current_customer&.id
+      }
+    )
+
     @context.ready
+
+    @context.attributes({
+      user_agent: request.user_agent,
+      customer_logged_in: current_customer.present?
+    })
+
+    @absmartly_drop = ABSmartly::Liquid::Drop.new(@context)
+  rescue => e
+    Rails.logger.error "ABsmartly initialization failed: #{e.message}"
+    @absmartly_drop = nil
   end
 
-  def test_treatment_filter
-    template = Liquid::Template.parse("{{ 'exp_test' | absmartly_treatment }}")
-    output = template.render('absmartly' => ABSmartly::LiquidDrop.new(@context))
-
-    assert_match /^[0-9]+$/, output
-  end
-
-  def test_variable_filter
-    template = Liquid::Template.parse("{{ 'button_color' | absmartly_variable: 'blue' }}")
-    output = template.render('absmartly' => ABSmartly::LiquidDrop.new(@context))
-
-    assert_includes ['blue', 'red', 'green'], output
+  def close_absmartly
+    @context&.close
   end
 end
 ```
 
-### Integration Tests
-
-See `test/integration_test.rb` for full integration tests.
-
-## Performance Considerations
-
-### Caching
-
-- Cache context data per session (5-10 minutes)
-- Use Redis for distributed caching
-- Pre-fetch data server-side to avoid blocking Liquid rendering
-
-### Event Publishing
-
-- Events are batched and published asynchronously
-- Configure `publish_delay` to batch more events
-- Use background jobs for publishing on high-traffic stores
-
-### Liquid Rendering
-
-- Minimize A/B test logic in templates
-- Pre-calculate variants server-side when possible
-- Use fragment caching for expensive A/B test blocks
-
-## Troubleshooting
-
-### Context Not Ready
-
-If `absmartly.ready` is false:
+In your template:
 
 ```liquid
 {% if absmartly.ready %}
-  {% assign variant = 'exp_test' | absmartly_treatment %}
+  {% assign header_color = 'header_color' | absmartly_variable: 'blue' %}
+  <header style="background: {{ header_color }}">
+    {% render 'header' %}
+  </header>
 {% else %}
-  <!-- Fallback UI -->
+  <header style="background: blue">
+    {% render 'header' %}
+  </header>
 {% endif %}
 ```
 
-### Events Not Publishing
-
-Check event logger configuration and network connectivity:
+### Using with Jekyll
 
 ```ruby
-# Enable debug logging
-sdk = ABSmartly::SDK.new(
-  endpoint: ENV['ABSMARTLY_ENDPOINT'],
-  api_key: ENV['ABSMARTLY_API_KEY'],
-  application: 'shopify-store',
-  environment: Rails.env,
-  event_logger: ->(ctx, event, data) { Rails.logger.debug "ABsmartly: #{event} - #{data}" }
-)
+# _plugins/absmartly.rb
+require 'absmartly/liquid'
+
+Jekyll::Hooks.register :site, :pre_render do |site|
+  sdk = ABSmartly::SDK.new(
+    endpoint: ENV['ABSMARTLY_ENDPOINT'],
+    api_key: ENV['ABSMARTLY_API_KEY'],
+    application: 'jekyll-site',
+    environment: ENV['JEKYLL_ENV'] || 'development'
+  )
+
+  context = sdk.create_context(
+    units: { site_id: site.config['url'] }
+  )
+  context.ready
+
+  drop = ABSmartly::Liquid::Drop.new(context)
+  site.config['absmartly'] = drop
+end
 ```
 
-### Variant Mismatch
+In your Jekyll template:
 
-Ensure units are consistent:
+```liquid
+{% assign hero_variant = 'exp_homepage_hero' | absmartly_treatment %}
 
-```ruby
-# Use same session ID everywhere
-session_id = session[:id] || SecureRandom.uuid
-session[:id] = session_id
-
-@absmartly = sdk.create_context(units: { session_id: session_id })
+{% if hero_variant == 0 %}
+  {% include hero-v1.html %}
+{% elsif hero_variant == 1 %}
+  {% include hero-v2.html %}
+{% endif %}
 ```
 
-## API Reference
+## About A/B Smartly
 
-See [API.md](./API.md) for complete API documentation.
+**A/B Smartly** is the leading provider of state-of-the-art, on-premises, full-stack experimentation platforms for engineering and product teams that want to confidently deploy features as fast as they can develop them.
+A/B Smartly's real-time analytics helps engineering and product teams ensure that new features will improve the customer experience without breaking or degrading performance and/or business metrics.
 
-## Best Practices
+### Have a look at our growing list of clients and SDKs:
 
-1. **Initialize once per request** - Create context in controller/before_action
-2. **Use consistent units** - Same session_id/customer_id throughout request
-3. **Cache context data** - Reduce HTTP calls to ABsmartly
-4. **Track conversions** - Use `absmartly_track` on important actions
-5. **Test fallbacks** - Handle context not ready gracefully
-6. **Monitor performance** - Log slow requests, optimize caching
-
-## Examples Repository
-
-See [examples/](./examples/) for complete Shopify theme examples:
-- Product page A/B tests
-- Checkout flow optimization
-- Homepage layout variations
-- Feature flags
-- Conversion tracking
-
-## Contributing
-
-See [CONTRIBUTING.md](./CONTRIBUTING.md)
-
-## License
-
-Apache License 2.0
-
-## About ABsmartly
-
-**ABsmartly** is the leading provider of state-of-the-art, on-premises, full-stack experimentation platforms for engineering and product teams that want to confidently deploy features as fast as they can develop them.
-
-### Links
-
-- [Documentation](https://docs.absmartly.com)
-- [JavaScript SDK](https://github.com/absmartly/javascript-sdk)
-- [Python SDK](https://github.com/absmartly/python3-sdk)
-- [Ruby SDK](https://github.com/absmartly/ruby-sdk)
-- [Java SDK](https://github.com/absmartly/java-sdk)
+- [JavaScript SDK](https://www.github.com/absmartly/javascript-sdk)
+- [Java SDK](https://www.github.com/absmartly/java-sdk)
+- [PHP SDK](https://www.github.com/absmartly/php-sdk)
+- [Swift SDK](https://www.github.com/absmartly/swift-sdk)
+- [Vue2 SDK](https://www.github.com/absmartly/vue2-sdk)
+- [Vue3 SDK](https://www.github.com/absmartly/vue3-sdk)
+- [React SDK](https://www.github.com/absmartly/react-sdk)
+- [Python3 SDK](https://www.github.com/absmartly/python3-sdk)
+- [Go SDK](https://www.github.com/absmartly/go-sdk)
+- [Ruby SDK](https://www.github.com/absmartly/ruby-sdk)
+- [.NET SDK](https://www.github.com/absmartly/dotnet-sdk)
+- [Dart SDK](https://www.github.com/absmartly/dart-sdk)
+- [Flutter SDK](https://www.github.com/absmartly/flutter-sdk)
+- [Liquid SDK](https://www.github.com/absmartly/liquid-sdk) (this package)
