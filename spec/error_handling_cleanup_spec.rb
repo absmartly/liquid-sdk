@@ -24,6 +24,28 @@ RSpec.describe 'Liquid wrapper error handling cleanup' do
     expect(log_output.string).not_to include('ABsmartly treatment error')
   end
 
+  it 'raises the dedicated missing-context error from the tracking filter' do
+    ABsmartly::Liquid.strict_mode = true
+
+    expect { Liquid::Template.parse("{{ 'goal' | absmartly_track }}").render! }
+      .to raise_error(ABsmartly::Liquid::ContextUnavailableError, 'ABsmartly context not available')
+  end
+
+  it 'raises the dedicated missing-context error from the treatment tag' do
+    ABsmartly::Liquid.strict_mode = true
+
+    expect do
+      Liquid::Template.parse("{% absmartly_treatment 'exp' %}{{ variant }}{% endabsmartly_treatment %}").render!
+    end.to raise_error(ABsmartly::Liquid::ContextUnavailableError, 'ABsmartly context not available')
+  end
+
+  it 'raises the dedicated missing-context error from the tracking tag' do
+    ABsmartly::Liquid.strict_mode = true
+
+    expect { Liquid::Template.parse("{% absmartly_track 'goal' %}").render! }
+      .to raise_error(ABsmartly::Liquid::ContextUnavailableError, 'ABsmartly context not available')
+  end
+
   it 'continues to treatment handling when a treatment tag readiness check fails' do
     ABsmartly::Liquid.strict_mode = false
     facade = Class.new(Liquid::Drop) do
