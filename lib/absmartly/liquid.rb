@@ -5,6 +5,13 @@ require 'logger'
 
 module ABsmartly
   module Liquid
+    # Raised in strict mode when no ABsmartly context was supplied.
+    class ContextUnavailableError < RuntimeError
+      def initialize(message = 'ABsmartly context not available')
+        super
+      end
+    end
+
     autoload :Logging, 'absmartly/liquid/logging'
     autoload :Drop, 'absmartly/liquid/drop'
     autoload :Filters, 'absmartly/liquid/filters'

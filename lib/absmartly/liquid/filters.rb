@@ -21,6 +21,8 @@ module ABsmartly
         end
       rescue NotReadyError => e
         raise e.cause_error
+      rescue ContextUnavailableError
+        raise
       rescue StandardError => e
         raise if sdk_state_error?(e)
         log_error("ABsmartly treatment error for '#{experiment_name}': #{e.message}")
@@ -34,6 +36,8 @@ module ABsmartly
         end
       rescue NotReadyError => e
         raise e.cause_error
+      rescue ContextUnavailableError
+        raise
       rescue StandardError => e
         raise if sdk_state_error?(e)
         log_error("ABsmartly peek error for '#{experiment_name}': #{e.message}")
@@ -47,6 +51,8 @@ module ABsmartly
         end
       rescue NotReadyError => e
         raise e.cause_error
+      rescue ContextUnavailableError
+        raise
       rescue StandardError => e
         raise if sdk_state_error?(e)
         log_error("ABsmartly variable error for '#{key}': #{e.message}")
@@ -60,6 +66,8 @@ module ABsmartly
         end
       rescue NotReadyError => e
         raise e.cause_error
+      rescue ContextUnavailableError
+        raise
       rescue StandardError => e
         raise if sdk_state_error?(e)
         log_error("ABsmartly peek_variable error for '#{key}': #{e.message}")
@@ -73,6 +81,8 @@ module ABsmartly
         end
       rescue NotReadyError => e
         raise e.cause_error
+      rescue ContextUnavailableError
+        raise
       rescue StandardError => e
         raise if sdk_state_error?(e)
         log_error("ABsmartly custom_field error for '#{experiment_name}.#{field_name}': #{e.message}")
@@ -86,7 +96,7 @@ module ABsmartly
         ctx = get_absmartly_context
         unless ctx
           log_warning("ABsmartly context missing, event '#{goal_name}' dropped")
-          raise 'ABsmartly context not available' if ABsmartly::Liquid.strict_mode
+          raise ContextUnavailableError if ABsmartly::Liquid.strict_mode
           return ''
         end
         # Errors raised by the SDK's track (finalized context, invalid goal
@@ -106,7 +116,7 @@ module ABsmartly
 
         unless context
           log_warning('ABsmartly context missing, returning fallback value')
-          raise 'ABsmartly context not available' if ABsmartly::Liquid.strict_mode
+          raise ContextUnavailableError if ABsmartly::Liquid.strict_mode
           return fallback
         end
 

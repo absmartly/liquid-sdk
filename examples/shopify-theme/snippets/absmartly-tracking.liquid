@@ -7,14 +7,8 @@
       product_id: product.id,
       collection_id: collection.id
     %}
-
-  SECURITY: All values are properly JSON-escaped to prevent XSS attacks.
-  All numeric values are validated to ensure they are actually numbers.
 {% endcomment %}
 
-{% comment %}
-  Build event data object server-side with proper type checking and escaping
-{% endcomment %}
 {% capture event_fields %}
   "event": {{ event | json }}
   {% if product_id %}, "product_id": {{ product_id | json }}{% endif %}

@@ -169,16 +169,16 @@ The SDK provides two error handling modes:
 
 ### Graceful Mode (Default)
 
-Errors are logged but don't crash page rendering:
+Missing contexts and recoverable wrapper errors are logged instead of crashing page rendering:
 
 ```ruby
 ABsmartly::Liquid.strict_mode = false  # Default
 ```
 
 Behavior:
-- Missing context → returns control variant (0) + logs warning
-- SDK errors → returns safe defaults + logs error
-- Pages always render successfully
+- Missing context → returns control variant (0) or the default value + logs warning
+- Recoverable SDK errors → returns safe defaults + logs error
+- SDK lifecycle errors ("ABsmartly Context is not yet ready." / "ABsmartly Context is finalized.") and SDK tracking errors propagate, so the page does not render a misleading control/default value
 
 Use for: **Production environments**
 
@@ -215,7 +215,6 @@ ABsmartly::Liquid.logger = Logger.new('/dev/null')
 
 **Monitor these warnings in production:**
 - "ABsmartly context missing" - indicates Drop not injected
-- "ABsmartly context not ready" - indicates SDK initialization failure
 - "event dropped" - indicates lost tracking data
 
 ## Example Templates Security Review

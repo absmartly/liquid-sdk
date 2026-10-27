@@ -12,13 +12,8 @@
 
   This snippet initializes the ABsmartly context with server-side data
   and makes it available to all other Liquid templates.
-
-  IMPORTANT: All values are properly JSON-escaped to prevent XSS attacks.
 {% endcomment %}
 
-{% comment %}
-  Build config object server-side with proper escaping
-{% endcomment %}
 {% capture config_data %}
 {
   "endpoint": {{ settings.absmartly_endpoint | json }},
@@ -32,7 +27,6 @@
 {% endcapture %}
 
 <script>
-  /* ABsmartly Client Configuration - Server-Side Rendered */
   window.absmartlyConfig = {{ config_data | strip }};
 
   {% comment %}

@@ -1,6 +1,6 @@
 # ABsmartly Liquid SDK
 
-A/B testing SDK for [Shopify Liquid](https://shopify.github.io/liquid/) templating language and [Jekyll](https://jekyllrb.com/) static site generator. This SDK brings the power of ABsmartly's experimentation platform to server-side rendered templates.
+A/B testing SDK for the [Shopify Liquid](https://shopify.github.io/liquid/) templating language. This SDK brings the power of ABsmartly's experimentation platform to server-side rendered templates.
 
 ## Compatibility
 
@@ -9,7 +9,8 @@ The ABsmartly Liquid SDK is compatible with:
 - **Ruby**: Version 3.0 and later
 - **Liquid**: Version 5.0 and later
 - **Shopify Themes**: All modern Shopify themes
-- **Jekyll**: Version 4.0 and later
+
+Jekyll 4 depends on Liquid 4, so it is not compatible with this Liquid 5 gem.
 
 **Note on Naming:** This SDK uses the module name `ABsmartly::Liquid` (with namespace) to avoid clashing with the Ruby SDK's main module (`Absmartly`). When requiring the gem, use `require 'absmartly/liquid'`.
 
@@ -25,13 +26,6 @@ Then run:
 
 ```bash
 bundle install
-```
-
-For Jekyll sites, also add to your `_config.yml`:
-
-```yaml
-plugins:
-  - absmartly-liquid-sdk
 ```
 
 ## Getting Started
@@ -384,42 +378,6 @@ In your template:
   <header style="background: blue">
     {% render 'header' %}
   </header>
-{% endif %}
-```
-
-### Using with Jekyll
-
-```ruby
-# _plugins/absmartly.rb
-require 'absmartly/liquid'
-
-Jekyll::Hooks.register :site, :pre_render do |site|
-  sdk = ABSmartly::SDK.new(
-    endpoint: ENV['ABSMARTLY_ENDPOINT'],
-    api_key: ENV['ABSMARTLY_API_KEY'],
-    application: 'jekyll-site',
-    environment: ENV['JEKYLL_ENV'] || 'development'
-  )
-
-  context = sdk.create_context(
-    units: { site_id: site.config['url'] }
-  )
-  context.ready
-
-  drop = ABSmartly::Liquid::Drop.new(context)
-  site.config['absmartly'] = drop
-end
-```
-
-In your Jekyll template:
-
-```liquid
-{% assign hero_variant = 'exp_homepage_hero' | absmartly_treatment %}
-
-{% if hero_variant == 0 %}
-  {% include hero-v1.html %}
-{% elsif hero_variant == 1 %}
-  {% include hero-v2.html %}
 {% endif %}
 ```
 

@@ -28,10 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive logging throughout SDK with configurable logger
 - Strict mode option for fail-fast behavior in development/staging
 - Better error messages for syntax errors in tags
-- Warnings when context is missing or not ready
+- Warnings when context is missing
 - Warnings when tracking events are dropped
+- `ABsmartly::Liquid::ContextUnavailableError` for missing contexts in strict mode (subclass of `RuntimeError`, same message as before)
 
 ### Changed
+- Jekyll is no longer listed as supported: Jekyll 4 depends on Liquid 4, while this gem requires Liquid 5
 - `absmartly_track` filter and tag no longer drop events when the context is not ready; the underlying SDK queues them (matches JS `track()`, which only rejects finalized contexts)
 - Improved property parsing in TrackTag to handle more complex values
 - Changed Drop to use `attr_reader` for cleaner code

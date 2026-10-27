@@ -7,6 +7,7 @@ module ABsmartly
       attr_reader :absmartly_context
 
       def initialize(absmartly_context)
+        super()
         @absmartly_context = absmartly_context
       end
 
@@ -56,7 +57,7 @@ module ABsmartly
       end
 
       def treatment(experiment_name)
-        validate_experiment_name(experiment_name)
+        validate_non_empty_string(experiment_name, 'Experiment name')
         @absmartly_context.treatment(experiment_name)
       rescue StandardError => e
         raise if sdk_not_ready? || sdk_state_error?(e)
@@ -66,7 +67,7 @@ module ABsmartly
       end
 
       def peek(experiment_name)
-        validate_experiment_name(experiment_name)
+        validate_non_empty_string(experiment_name, 'Experiment name')
         @absmartly_context.peek_treatment(experiment_name)
       rescue StandardError => e
         raise if sdk_not_ready? || sdk_state_error?(e)
@@ -76,7 +77,7 @@ module ABsmartly
       end
 
       def variable(key, default_value)
-        validate_variable_key(key)
+        validate_non_empty_string(key, 'Variable key')
         @absmartly_context.variable_value(key, default_value)
       rescue StandardError => e
         raise if sdk_not_ready? || sdk_state_error?(e)
@@ -86,7 +87,7 @@ module ABsmartly
       end
 
       def peek_variable(key, default_value)
-        validate_variable_key(key)
+        validate_non_empty_string(key, 'Variable key')
         @absmartly_context.peek_variable_value(key, default_value)
       rescue StandardError => e
         raise if sdk_not_ready? || sdk_state_error?(e)
@@ -96,8 +97,8 @@ module ABsmartly
       end
 
       def custom_field(experiment_name, field_name)
-        validate_experiment_name(experiment_name)
-        validate_field_name(field_name)
+        validate_non_empty_string(experiment_name, 'Experiment name')
+        validate_non_empty_string(field_name, 'Field name')
         @absmartly_context.custom_field_value(experiment_name, field_name)
       rescue StandardError => e
         raise if sdk_not_ready? || sdk_state_error?(e)
@@ -111,7 +112,7 @@ module ABsmartly
       # Only an invalid goal name supplied by the template falls back to nil.
       def track(goal_name, properties = nil)
         begin
-          validate_goal_name(goal_name)
+          validate_non_empty_string(goal_name, 'Goal name')
         rescue ArgumentError => e
           log_error("Error in track for '#{goal_name}': #{e.message}")
           raise if ABsmartly::Liquid.strict_mode
@@ -158,23 +159,6 @@ module ABsmartly
 
         raise ArgumentError, "#{label} must be a non-empty string"
       end
-
-      def validate_experiment_name(name)
-        validate_non_empty_string(name, 'Experiment name')
-      end
-
-      def validate_variable_key(key)
-        validate_non_empty_string(key, 'Variable key')
-      end
-
-      def validate_field_name(name)
-        validate_non_empty_string(name, 'Field name')
-      end
-
-      def validate_goal_name(name)
-        validate_non_empty_string(name, 'Goal name')
-      end
-
     end
   end
 end
