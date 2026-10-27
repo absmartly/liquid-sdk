@@ -22,6 +22,7 @@ module ABsmartly
       rescue NotReadyError => e
         raise e.cause_error
       rescue StandardError => e
+        raise if sdk_state_error?(e)
         log_error("ABsmartly treatment error for '#{experiment_name}': #{e.message}")
         raise if ABsmartly::Liquid.strict_mode
         0
@@ -34,6 +35,7 @@ module ABsmartly
       rescue NotReadyError => e
         raise e.cause_error
       rescue StandardError => e
+        raise if sdk_state_error?(e)
         log_error("ABsmartly peek error for '#{experiment_name}': #{e.message}")
         raise if ABsmartly::Liquid.strict_mode
         0
@@ -46,6 +48,7 @@ module ABsmartly
       rescue NotReadyError => e
         raise e.cause_error
       rescue StandardError => e
+        raise if sdk_state_error?(e)
         log_error("ABsmartly variable error for '#{key}': #{e.message}")
         raise if ABsmartly::Liquid.strict_mode
         default_value
@@ -58,6 +61,7 @@ module ABsmartly
       rescue NotReadyError => e
         raise e.cause_error
       rescue StandardError => e
+        raise if sdk_state_error?(e)
         log_error("ABsmartly peek_variable error for '#{key}': #{e.message}")
         raise if ABsmartly::Liquid.strict_mode
         default_value
@@ -70,6 +74,7 @@ module ABsmartly
       rescue NotReadyError => e
         raise e.cause_error
       rescue StandardError => e
+        raise if sdk_state_error?(e)
         log_error("ABsmartly custom_field error for '#{experiment_name}.#{field_name}': #{e.message}")
         raise if ABsmartly::Liquid.strict_mode
         nil
@@ -84,15 +89,17 @@ module ABsmartly
           raise 'ABsmartly context not available' if ABsmartly::Liquid.strict_mode
           return ''
         end
+        # Errors raised by the SDK's track (finalized context, invalid goal
+        # properties) propagate in every mode: a swallowed goal is lost silently.
         ctx.track(goal_name, properties)
-        ''
-      rescue StandardError => e
-        log_error("ABsmartly track error for '#{goal_name}': #{e.message}")
-        raise if ABsmartly::Liquid.strict_mode
         ''
       end
 
       private
+
+      def sdk_state_error?(error)
+        defined?(::IllegalStateException) && error.is_a?(::IllegalStateException)
+      end
 
       def with_ready_context(fallback)
         context = get_absmartly_context

@@ -41,6 +41,7 @@ module ABsmartly
       def experiments
         @absmartly_context.experiments
       rescue StandardError => e
+        raise if sdk_state_error?(e)
         log_error("Error retrieving experiments: #{e.message}")
         raise if ABsmartly::Liquid.strict_mode
         []
@@ -58,7 +59,7 @@ module ABsmartly
         validate_experiment_name(experiment_name)
         @absmartly_context.treatment(experiment_name)
       rescue StandardError => e
-        raise if sdk_not_ready?
+        raise if sdk_not_ready? || sdk_state_error?(e)
         log_error("Error in treatment for '#{experiment_name}': #{e.message}")
         raise if ABsmartly::Liquid.strict_mode
         0
@@ -68,7 +69,7 @@ module ABsmartly
         validate_experiment_name(experiment_name)
         @absmartly_context.peek_treatment(experiment_name)
       rescue StandardError => e
-        raise if sdk_not_ready?
+        raise if sdk_not_ready? || sdk_state_error?(e)
         log_error("Error in peek for '#{experiment_name}': #{e.message}")
         raise if ABsmartly::Liquid.strict_mode
         0
@@ -78,7 +79,7 @@ module ABsmartly
         validate_variable_key(key)
         @absmartly_context.variable_value(key, default_value)
       rescue StandardError => e
-        raise if sdk_not_ready?
+        raise if sdk_not_ready? || sdk_state_error?(e)
         log_error("Error in variable for '#{key}': #{e.message}")
         raise if ABsmartly::Liquid.strict_mode
         default_value
@@ -88,7 +89,7 @@ module ABsmartly
         validate_variable_key(key)
         @absmartly_context.peek_variable_value(key, default_value)
       rescue StandardError => e
-        raise if sdk_not_ready?
+        raise if sdk_not_ready? || sdk_state_error?(e)
         log_error("Error in peek_variable for '#{key}': #{e.message}")
         raise if ABsmartly::Liquid.strict_mode
         default_value
@@ -99,19 +100,24 @@ module ABsmartly
         validate_field_name(field_name)
         @absmartly_context.custom_field_value(experiment_name, field_name)
       rescue StandardError => e
-        raise if sdk_not_ready?
+        raise if sdk_not_ready? || sdk_state_error?(e)
         log_error("Error in custom_field for '#{experiment_name}.#{field_name}': #{e.message}")
         raise if ABsmartly::Liquid.strict_mode
         nil
       end
 
+      # Errors raised by the SDK's track (finalized context, invalid goal
+      # properties) always propagate: a swallowed goal would be lost silently.
+      # Only an invalid goal name supplied by the template falls back to nil.
       def track(goal_name, properties = nil)
-        validate_goal_name(goal_name)
+        begin
+          validate_goal_name(goal_name)
+        rescue ArgumentError => e
+          log_error("Error in track for '#{goal_name}': #{e.message}")
+          raise if ABsmartly::Liquid.strict_mode
+          return nil
+        end
         @absmartly_context.track(goal_name, properties)
-      rescue StandardError => e
-        log_error("Error in track for '#{goal_name}': #{e.message}")
-        raise if ABsmartly::Liquid.strict_mode
-        nil
       end
 
       def data
@@ -139,6 +145,12 @@ module ABsmartly
         @absmartly_context.respond_to?(:ready?) && !@absmartly_context.ready?
       rescue StandardError
         false
+      end
+
+      # The SDK's lifecycle errors (not yet ready, finalized) are raised in
+      # every mode, matching the JS SDK, rather than replaced by a fallback.
+      def sdk_state_error?(error)
+        defined?(::IllegalStateException) && error.is_a?(::IllegalStateException)
       end
 
       def validate_non_empty_string(value, label)

@@ -28,6 +28,8 @@ module ABsmartly
             begin
               absmartly.treatment(experiment_name)
             rescue StandardError => e
+              # Lifecycle errors (finalized) are raised in every mode.
+              raise if defined?(::IllegalStateException) && e.is_a?(::IllegalStateException)
               log_error("Treatment error for '#{experiment_name}': #{e.message}")
               raise if ABsmartly::Liquid.strict_mode
               0
@@ -68,13 +70,9 @@ module ABsmartly
           absmartly = context['absmartly']
 
           # No ready? gate: JS track() queues events before the context is ready.
+          # SDK track errors (finalized, invalid properties) propagate.
           if absmartly
-            begin
-              absmartly.track(goal_name, properties)
-            rescue StandardError => e
-              log_error("Track error for '#{goal_name}': #{e.message}")
-              raise if ABsmartly::Liquid.strict_mode
-            end
+            absmartly.track(goal_name, properties)
           else
             log_warning("ABsmartly context missing, event '#{goal_name}' dropped")
             raise 'ABsmartly context not available' if ABsmartly::Liquid.strict_mode
