@@ -1,13 +1,25 @@
 require 'liquid'
 require 'absmartly'
 
+require 'logger'
+
 module ABsmartly
   module Liquid
+    # Raised in strict mode when no ABsmartly context was supplied.
+    class ContextUnavailableError < RuntimeError
+      def initialize(message = 'ABsmartly context not available')
+        super
+      end
+    end
+
+    autoload :Logging, 'absmartly/liquid/logging'
     autoload :Drop, 'absmartly/liquid/drop'
     autoload :Filters, 'absmartly/liquid/filters'
     autoload :Tags, 'absmartly/liquid/tags'
 
     class << self
+      attr_accessor :logger
+      attr_accessor :strict_mode
       attr_accessor :current_context
 
       def register_filters
@@ -24,6 +36,10 @@ module ABsmartly
         register_tags
       end
     end
+
+    self.logger = Logger.new($stdout)
+    self.logger.level = Logger::WARN
+    self.strict_mode = false
   end
 end
 

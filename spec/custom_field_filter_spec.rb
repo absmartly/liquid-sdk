@@ -57,14 +57,15 @@ RSpec.describe 'Custom Field Filters' do
       expect(output).to eq('')
     end
 
-    it 'returns empty string when context not ready' do
+    it 'propagates the SDK not-ready error when context not ready' do
       not_ready_context = double('context', ready?: false)
+      allow(not_ready_context).to receive(:custom_field_value)
+        .and_raise(IllegalStateException.new('ABsmartly Context is not yet ready.'))
       not_ready_drop = ABsmartly::Liquid::Drop.new(not_ready_context)
 
       template = Liquid::Template.parse("{{ 'exp_test' | absmartly_custom_field: 'category' }}")
-      output = template.render('absmartly' => not_ready_drop)
-
-      expect(output).to eq('')
+      expect { template.render!('absmartly' => not_ready_drop) }
+        .to raise_error(IllegalStateException, /not yet ready/)
     end
   end
 

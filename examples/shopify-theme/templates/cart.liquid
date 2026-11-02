@@ -94,10 +94,13 @@
 
 {% comment %} Checkout tracking {% endcomment %}
 <script>
-  document.querySelector('[name="checkout"]').addEventListener('click', function() {
-    window.absmartly.track('begin_checkout', {
-      item_count: {{ cart.item_count }},
-      total_price: {{ cart.total_price | divided_by: 100.0 }}
+  var checkoutButton = document.querySelector('[name="checkout"]');
+  if (checkoutButton) {
+    checkoutButton.addEventListener('click', function() {
+      window.absmartly.track('begin_checkout', {
+        item_count: {{ cart.item_count | json }},
+        total_price: {{ cart.total_price | divided_by: 100.0 | json }}
+      });
     });
-  });
+  }
 </script>

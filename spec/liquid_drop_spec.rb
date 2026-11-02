@@ -128,4 +128,43 @@ RSpec.describe ABsmartly::Liquid::Drop do
       expect(drop.units).to eq({ 'session_id' => 'test123' })
     end
   end
+
+  describe 'reads on a context that is not yet ready' do
+    let(:not_ready_error) { IllegalStateException.new('ABsmartly Context is not yet ready.') }
+    let(:context) do
+      double('context', ready?: false).tap do |ctx|
+        %i[treatment peek_treatment variable_value peek_variable_value custom_field_value].each do |m|
+          allow(ctx).to receive(m).and_raise(not_ready_error)
+        end
+      end
+    end
+
+    around do |example|
+      original = ABsmartly::Liquid.strict_mode
+      ABsmartly::Liquid.strict_mode = false
+      example.run
+    ensure
+      ABsmartly::Liquid.strict_mode = original
+    end
+
+    it '#treatment raises instead of returning 0' do
+      expect { drop.treatment('exp1') }.to raise_error(IllegalStateException, 'ABsmartly Context is not yet ready.')
+    end
+
+    it '#peek raises instead of returning 0' do
+      expect { drop.peek('exp1') }.to raise_error(IllegalStateException, 'ABsmartly Context is not yet ready.')
+    end
+
+    it '#variable raises instead of returning the default' do
+      expect { drop.variable('color', 'default') }.to raise_error(IllegalStateException, 'ABsmartly Context is not yet ready.')
+    end
+
+    it '#peek_variable raises instead of returning the default' do
+      expect { drop.peek_variable('color', 'default') }.to raise_error(IllegalStateException, 'ABsmartly Context is not yet ready.')
+    end
+
+    it '#custom_field raises instead of returning nil' do
+      expect { drop.custom_field('exp1', 'field') }.to raise_error(IllegalStateException, 'ABsmartly Context is not yet ready.')
+    end
+  end
 end

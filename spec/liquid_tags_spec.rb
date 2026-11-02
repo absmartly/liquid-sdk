@@ -129,10 +129,9 @@ RSpec.describe ABsmartly::Liquid::Tags do
     end
 
     it 'handles context that is not ready' do
-      not_ready_context = double('context',
-        ready?: false,
-        treatment: 0
-      )
+      not_ready_context = double('context', ready?: false)
+      allow(not_ready_context).to receive(:treatment)
+        .and_raise(IllegalStateException.new('ABsmartly Context is not yet ready.'))
       not_ready_drop = ABsmartly::Liquid::Drop.new(not_ready_context)
 
       template = Liquid::Template.parse(<<~LIQUID)
@@ -141,9 +140,8 @@ RSpec.describe ABsmartly::Liquid::Tags do
         {% endabsmartly_treatment %}
       LIQUID
 
-      output = template.render('absmartly' => not_ready_drop)
-
-      expect(output).to match(/Variant: 0/)
+      expect { template.render!('absmartly' => not_ready_drop) }
+        .to raise_error(IllegalStateException, 'ABsmartly Context is not yet ready.')
     end
   end
 
@@ -250,6 +248,27 @@ RSpec.describe ABsmartly::Liquid::Tags do
       template.render('absmartly' => drop)
 
       expect(context.pending_count).to be > initial_pending
+    end
+  end
+
+  describe 'duck-typed facades without ready?' do
+    let(:facade) do
+      Class.new do
+        attr_reader :tracked
+        def to_liquid = self
+        def treatment(_name) = 2
+        def track(goal, props) = (@tracked = [goal, props])
+      end.new
+    end
+
+    it 'still invokes treatment' do
+      out = Liquid::Template.parse("{% absmartly_treatment 'exp' %}v={{ variant }}{% endabsmartly_treatment %}").render('absmartly' => facade)
+      expect(out.strip).to eq('v=2')
+    end
+
+    it 'still invokes track' do
+      Liquid::Template.parse("{% absmartly_track 'goal', a: 5 %}").render('absmartly' => facade)
+      expect(facade.tracked).to eq(['goal', { 'a' => '5' }])
     end
   end
 end
